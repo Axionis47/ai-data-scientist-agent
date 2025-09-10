@@ -1,4 +1,4 @@
-AI Data Scientist Backend
+ai-data-scientist-agent (Backend)
 
 Quick Start
 

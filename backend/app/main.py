@@ -55,7 +55,7 @@ from .core.clarify import apply_clarification
 SAMPLE_TARGET_ROWS = 100_000
 
 # --- App ---
-app = FastAPI(title="AI Data Scientist Backend", version="0.1.0")
+app = FastAPI(title="AI Data Scientist Agent", version="0.1.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
