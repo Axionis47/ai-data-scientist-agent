@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+jobs:
+  lint-type-test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install .
+          if [ -f requirements-dev.txt ]; then pip install -r requirements-dev.txt; fi
+      - name: Lint (ruff)
+        run: |
+          pip install ruff
+          ruff --version
+          ruff check app tests || true
+      - name: Format check (black)
+        run: |
+          pip install black
+          black --version
+          black --check app tests || true
+      - name: Type check (mypy)
+        run: |
+          pip install mypy
+          mypy app || true
+      - name: Security (bandit)
+        run: |
+          pip install bandit
+          bandit -r app -x tests || true
+      - name: Tests (pytest)
+        env:
+          OPENAI_API_KEY: ""
+          SHAP_ENABLED: "false"
+        run: |
+          pip install pytest
+          pytest -q --maxfail=1 --disable-warnings
+

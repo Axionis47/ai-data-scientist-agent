@@ -1,0 +1,26 @@
+# Secrets
+.env
+*.env
+backend/.env
+frontend/.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+
+# Node/Next.js
+node_modules/
+frontend/.next/
+frontend/out/
+
+# macOS
+.DS_Store
+
+# Project data outputs
+backend/data/jobs/
+backend/data/**/*.parquet
+backend/data/**/*.feather
+
