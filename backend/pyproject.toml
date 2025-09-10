@@ -3,10 +3,10 @@ requires = ["hatchling>=1.18.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ai-data-scientist-backend"
+name = "ai-data-scientist-agent"
 version = "0.1.0"
-description = "FastAPI backend for AI Data Scientist"
-authors = [{name = "AI Data Scientist", email = "dev@example.com"}]
+description = "FastAPI backend for AI Data Scientist Agent"
+authors = [{name = "AI Data Scientist Agent", email = "dev@example.com"}]
 requires-python = ">=3.10"
 dependencies = [
   "fastapi>=0.111.0",
