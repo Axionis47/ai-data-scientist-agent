@@ -21,8 +21,9 @@ An AI agent that ingests a dataset, runs fast EDA, optionally builds a simple ML
 
 ## CI/CD
 - GitHub Actions: CI runs lint/type/security/tests on PRs and pushes
+- Coverage uploaded to Codecov (optional dashboard)
 - Dockerfile provided for backend
-- CD workflow builds/pushes image to GHCR (deployment wiring pending target)
+- CD workflow builds/pushes image to GHCR (latest + sha), with Trivy image scan
 
 ## Serverless-ready (GCP)
 - Adapters scaffolded for Storage (Local/GCS), JobStore (Memory/Firestore), JobQueue (Local/PubSub)
