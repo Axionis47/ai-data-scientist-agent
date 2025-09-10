@@ -40,11 +40,16 @@ jobs:
         run: |
           pip install bandit
           bandit -r app -x tests || true
-      - name: Tests (pytest)
+      - name: Tests (pytest with coverage)
         env:
           OPENAI_API_KEY: ""
           SHAP_ENABLED: "false"
         run: |
-          pip install pytest
-          pytest -q --maxfail=1 --disable-warnings
+          pip install pytest pytest-cov
+          pytest -q --maxfail=1 --disable-warnings --cov=app --cov-report=xml:coverage.xml
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v4
+        with:
+          files: backend/coverage.xml
+          fail_ci_if_error: false
 
