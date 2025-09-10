@@ -1,5 +1,7 @@
 # ai-data-scientist-agent
 
+[![CI](https://github.com/Axionis47/ai-data-scientist-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Axionis47/ai-data-scientist-agent/actions/workflows/ci.yml)
+
 An AI agent that ingests a dataset, runs fast EDA, optionally builds a simple ML model, and generates a clean HTML report. Built with FastAPI + Pandas + scikit-learn. Ready for CI and prepared for a future serverless (GCP) deployment.
 
 ## Quick Start (backend)
