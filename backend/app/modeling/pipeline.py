@@ -1,4 +1,13 @@
 from typing import Dict, Any, Optional
+"""Modeling pipeline: trains simple candidates, evaluates, and produces explainability outputs.
+
+Key entry: run_modeling(job_id, df, eda, manifest) -> modeling dict.
+- Chooses task based on target dtype and cardinality
+- Builds preprocessing (impute + TopK + OHE) and candidates (linear/tree/boosting)
+- Applies safe CV folds for tiny data, optional quick hyperparam search
+- Writes modeling.json for resumability; returns leaderboard, best, and explain artifacts
+"""
+
 import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
@@ -89,7 +98,8 @@ def run_modeling(job_id: str, df: pd.DataFrame, eda: Dict[str, Any], manifest: D
 
     # Columns
     num_cols = [c for c in X.columns if ptypes.is_numeric_dtype(X[c])]
-    cat_cols = [c for c in X.columns if (ptypes.is_object_dtype(X[c]) or ptypes.is_categorical_dtype(X[c]))]
+    from pandas.api.types import CategoricalDtype
+    cat_cols = [c for c in X.columns if (ptypes.is_object_dtype(X[c]) or isinstance(X[c].dtype, CategoricalDtype))]
     n_rows = len(X)
     cat_ratio = (len(cat_cols) / max(1, len(X.columns)))
 
@@ -102,6 +112,7 @@ def run_modeling(job_id: str, df: pd.DataFrame, eda: Dict[str, Any], manifest: D
     ], remainder='drop')
 
     is_class = (not ptypes.is_numeric_dtype(y)) or (y.nunique(dropna=True) <= 10)
+    y_unique = int(pd.Series(y).nunique(dropna=True))
 
     # Feature selection for linear
     use_mi = False
@@ -113,7 +124,12 @@ def run_modeling(job_id: str, df: pd.DataFrame, eda: Dict[str, Any], manifest: D
                                    ("ohe", OneHotEncoder(handle_unknown="ignore", sparse_output=False))]), cat_cols)
         ], remainder='drop')
         _ = pre_preview.fit_transform(Xs)
-        n_feat = int(getattr(pre_preview, 'transformers_', [])[1][1].named_steps['ohe'].get_feature_names_out().shape[0] + len(num_cols)) if cat_cols else len(num_cols)
+        # Guard when cat_cols may be empty or transformer structure differs
+        try:
+            ohe = getattr(pre_preview, 'transformers_', [])[1][1].named_steps['ohe']
+            n_feat = int(ohe.get_feature_names_out().shape[0] + len(num_cols))
+        except Exception:
+            n_feat = len(num_cols)
         use_mi = n_feat > 100
     except Exception:
         pass
@@ -158,7 +174,21 @@ def run_modeling(job_id: str, df: pd.DataFrame, eda: Dict[str, Any], manifest: D
     from sklearn.model_selection import train_test_split, StratifiedKFold
     strat = y if is_class else None
     Xtr, Xte, ytr, yte = train_test_split(X, y, test_size=0.2, random_state=42, stratify=strat)
-    cv_iter = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=42).split(Xtr, ytr) if is_class else CV_FOLDS
+    # Choose safe CV folds for tiny datasets
+    if is_class:
+        try:
+            counts = ytr.value_counts()
+            min_class = int(counts.min()) if len(counts) else 0
+            eff_folds = max(2, min(CV_FOLDS, min_class)) if min_class >= 2 else 2
+        except Exception:
+            eff_folds = min(CV_FOLDS, 3)
+        try:
+            cv_iter = StratifiedKFold(n_splits=eff_folds, shuffle=True, random_state=42).split(Xtr, ytr)
+        except Exception:
+            cv_iter = eff_folds
+    else:
+        eff_folds = min(CV_FOLDS, max(2, len(Xtr)//5)) if len(Xtr) >= 10 else 2
+        cv_iter = eff_folds
 
     # Early sample evaluation
     sample_eval = None
@@ -267,7 +297,18 @@ def run_modeling(job_id: str, df: pd.DataFrame, eda: Dict[str, Any], manifest: D
 
     result["leaderboard"] = leaderboard
     result["best"] = best
+    # Attach selected tools and feature counts for telemetry/result
+    result["selected_tools"] = [name for name, _ in cands]
+    result["features"] = {"numeric": len(num_cols), "categorical": len(cat_cols)}
+
     result["task"] = "classification" if is_class else "regression"
+    # Minimal modeling.json write for resumability
+    try:
+        import json
+        (JOBS_DIR / job_id / "modeling.json").write_text(json.dumps(result, indent=2), encoding="utf-8")
+    except Exception:
+        pass
+
     result["explain"] = explain
     return result
 

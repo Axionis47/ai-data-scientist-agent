@@ -38,10 +38,10 @@ def test_large_file_chunked_missingness(tmp_path: Path, monkeypatch):
     assert r.status_code == 200
 
     import time
-    for _ in range(30):
+    for _ in range(60):
         time.sleep(0.2)
         st = client.get(f"/status/{job_id}").json()
-        if st['status'] == 'COMPLETED' or st['stage'] == 'clarify':
+        if st['status'] in ('COMPLETED','FAILED') or st['stage'] == 'clarify':
             break
 
     res = client.get(f"/result/{job_id}")

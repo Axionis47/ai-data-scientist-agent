@@ -20,8 +20,12 @@ export default function Run(){
     const int = setInterval(async ()=>{
       const r = await fetch(`${API}/status/${jobId}`)
       const j = await r.json(); setStatus(j)
+      // fetch result early during EDA for preview
+      if(j.stage === 'eda' || j.status === 'COMPLETED'){
+        try{ const rr = await fetch(`${API}/result/${jobId}`); if(rr.ok){ setResult(await rr.json()) } }catch{}
+      }
       if(j.status === 'COMPLETED'){
-        clearInterval(int); const rr = await fetch(`${API}/result/${jobId}`); setResult(await rr.json())
+        clearInterval(int)
       }
     }, 1000)
     return ()=>clearInterval(int)
@@ -46,6 +50,7 @@ export default function Run(){
           <div className="col" style={{textAlign:'right'}}>
             <button className="btn secondary" onClick={()=>router.push(`/results/${jobId}`)} disabled={!result}>View Results</button>
             <button className="btn" onClick={sendClarification} disabled={!jobId}>Send Clarification</button>
+            <button className="btn danger" onClick={async()=>{ if(jobId){ await fetch(`${API}/cancel/${jobId}`, {method:'POST'}); alert('Cancelled'); } }} disabled={!jobId}>Cancel</button>
           </div>
         </div>
       </div>

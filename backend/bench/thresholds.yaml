@@ -1,0 +1,7 @@
+# Optional per-dataset thresholds for pass/fail (primary metric)
+thresholds:
+  titanic: 0.65
+  iris: 0.90
+  tips: 0.25
+  adult-small: 0.20
+

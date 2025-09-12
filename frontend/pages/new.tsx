@@ -64,10 +64,10 @@ export default function NewAnalysis(){
               <FileDropZone onFile={onFile} />
             </div>
             <div className="card" style={{flex:'1 1 420px'}}>
-              <h3>Or specify path</h3>
-              <label className="label">Dataset path (local or mounted)</label>
-              <input className="input" placeholder="backend/data/sample/titanic_small.csv" value={datasetPath} onChange={e=>setDatasetPath(e.target.value)} />
-              <div style={{marginTop:8, color:'#9ca3af'}}>Supported: CSV, JSON, Parquet</div>
+              <h3>Try sample data</h3>
+              <p className="label">Spin up a tiny Titanic sample to preview the flow.</p>
+              <button className="btn" onClick={async()=>{ const r=await fetch(`${API}/sample`, {method:'POST'}); const j=await r.json(); window.location.href = `/run/${j.job_id}` }}>Use Sample Data</button>
+              <div style={{marginTop:8, color:'#9ca3af'}}>Supported uploads: CSV, TSV, Excel (XLS/XLSX)</div>
             </div>
           </div>
         </section>

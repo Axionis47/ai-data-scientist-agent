@@ -1,7 +1,6 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Any, Optional, List
-import json
 import re
 
 import pandas as pd
@@ -18,6 +17,14 @@ PLOTS_PER_CATEG = 6
 
 
 def infer_format(path: Path) -> str:
+    """Infer file format by extension and simple content sniffing.
+
+    Args:
+        path: File path to inspect.
+
+    Returns:
+        One of "csv", "tsv", or "excel".
+    """
     ext = path.suffix.lower()
     if ext == ".csv":
         return "csv"
@@ -60,6 +67,10 @@ def detect_delimiter(sample: str) -> str:
 
 
 def is_large_file(path: Path, large_file_mb: int) -> bool:
+    """Return True if file size > large_file_mb.
+
+    Robust to stat() errors.
+    """
     try:
         return path.stat().st_size > large_file_mb * 1024 * 1024
     except Exception:
@@ -86,9 +97,9 @@ def load_sampled_chunked_csv(path: Path, delimiter: str, sample_target: int) -> 
         if sample_remaining <= 0:
             break
     df_sample = pd.concat(chunks, axis=0) if chunks else pd.DataFrame()
-    # Build missing as {col: {count, pct}} to match EDA schema
+    # Build missing over union of columns seen during chunking (not only sampled)
     missing: Dict[str, Any] = {}
-    for c in df_sample.columns:
+    for c in sorted(missing_sums.keys(), key=str):
         count = int(missing_sums.get(c, 0))
         pct = float((count / total_rows * 100) if total_rows else 0.0)
         missing[str(c)] = {"count": count, "pct": pct}
@@ -96,6 +107,18 @@ def load_sampled_chunked_csv(path: Path, delimiter: str, sample_target: int) -> 
 
 
 def load_dataframe(path: Path, file_format: Optional[str], sheet_name: Optional[str], delimiter: Optional[str], sample_rows: Optional[int] = None) -> pd.DataFrame:
+    """Load a dataframe from CSV/TSV/Excel; auto-detects delimiter when needed.
+
+    Args:
+        path: File path.
+        file_format: Optional override (csv/tsv/excel).
+        sheet_name: Excel sheet when reading Excel.
+        delimiter: CSV delimiter override; if None, a small sample is sniffed.
+        sample_rows: If set, reads only the first N rows.
+
+    Returns:
+        pandas.DataFrame of the loaded data.
+    """
     fmt = (file_format or infer_format(path)).lower()
     if fmt == "excel":
         df = pd.read_excel(path, sheet_name=sheet_name, nrows=sample_rows)
@@ -146,7 +169,8 @@ def compute_eda(df: pd.DataFrame, max_topk: int = 5) -> Dict[str, Any]:
             if ptypes.is_object_dtype(df[c]) and nunq[c] > 5:
                 sample = df[c].dropna().astype(str).head(100)
                 if not sample.empty:
-                    parsed = pd.to_datetime(sample, errors="coerce", infer_datetime_format=True)
+                    # Pandas >=2 default infers format; avoid deprecated infer_datetime_format
+                    parsed = pd.to_datetime(sample, errors="coerce")
                     if parsed.notna().mean() > 0.8:
                         time_like.append(str(c))
     except Exception:
@@ -174,12 +198,25 @@ def compute_eda(df: pd.DataFrame, max_topk: int = 5) -> Dict[str, Any]:
                         pairs.append(((str(a), str(b)), float(val)))
             pairs.sort(key=lambda kv: kv[1], reverse=True)
             eda["top_correlations"] = [(a, b, v) for (a, b), v in pairs[:10]]
-    except Exception:
-        pass
+    except Exception as e:
+        import logging; logging.getLogger(__name__).warning("EDA: top_correlations failed: %s", e)
+    # Categorical top-k summary (for tests)
+    try:
+        from pandas.api.types import CategoricalDtype
+        cat_cols = [c for c in df.columns if (ptypes.is_object_dtype(df[c]) or isinstance(df[c].dtype, CategoricalDtype))]
+        topk: Dict[str, List[str]] = {}
+        for c in cat_cols:
+            vc = df[c].astype(str).value_counts().head(5)
+            topk[str(c)] = [str(idx) for idx in vc.index]
+        if topk:
+            eda["categorical_topk"] = topk
+    except Exception as e:
+        import logging; logging.getLogger(__name__).warning("EDA: categorical_topk failed: %s", e)
     # Rare levels
     rare_levels: Dict[str, List[str]] = {}
     try:
-        cat_cols = [c for c in df.columns if (ptypes.is_object_dtype(df[c]) or ptypes.is_categorical_dtype(df[c]))]
+        from pandas.api.types import CategoricalDtype
+        cat_cols = [c for c in df.columns if (ptypes.is_object_dtype(df[c]) or isinstance(df[c].dtype, CategoricalDtype))]
         for c in cat_cols:
             vc = df[c].astype(str).value_counts()
             threshold = max(2, int(len(df) * 0.01))
@@ -206,8 +243,23 @@ def compute_eda(df: pd.DataFrame, max_topk: int = 5) -> Dict[str, Any]:
 
 
 def compute_target_relations(df: pd.DataFrame, target: str, max_features: int = 10) -> Dict[str, Any]:
+    """Compute simple relationships between features and a target column.
+
+    - Determines task type (classification if non-numeric or <=10 unique values)
+    - For numeric features: ranks by absolute Pearson correlation with target (for classification uses numeric-cast of target)
+    - For categorical features: lists top-5 frequent levels (as a heuristic indicator)
+
+    Args:
+        df: Input DataFrame containing the target.
+        target: Target column name.
+        max_features: Max numeric features to include in ranked output.
+
+    Returns:
+        Dict with keys: task (classification/regression), numeric[], categorical[]
+    """
     rel: Dict[str, Any] = {"numeric": [], "categorical": []}
     if target not in df.columns:
+        rel["task"] = "unknown"
         return rel
     y = df[target]
     y_is_numeric = ptypes.is_numeric_dtype(y)
@@ -229,7 +281,8 @@ def compute_target_relations(df: pd.DataFrame, target: str, max_features: int = 
     rel["numeric"].sort(key=lambda d: d["score"], reverse=True)
     rel["numeric"] = rel["numeric"][:max_features]
     # categorical
-    cat_cols = [c for c in df.columns if c != target and (ptypes.is_object_dtype(df[c]) or ptypes.is_categorical_dtype(df[c]))]
+    from pandas.api.types import CategoricalDtype
+    cat_cols = [c for c in df.columns if c != target and (ptypes.is_object_dtype(df[c]) or isinstance(df[c].dtype, CategoricalDtype))]
     for c in cat_cols:
         try:
             vc = df[c].value_counts(dropna=True)
@@ -238,10 +291,21 @@ def compute_target_relations(df: pd.DataFrame, target: str, max_features: int = 
             rel["categorical"].append({"col": str(c), "top": top})
         except Exception:
             pass
+    rel["task"] = "classification" if is_classification else "regression"
     return rel
 
 
 def compute_timeseries_hints(df: pd.DataFrame, time_col: str, metric_col: Optional[str]) -> Dict[str, Any]:
+    """Light TS hints: points count and coarse autocorr at lags 7/30.
+
+    Args:
+        df: Input DataFrame.
+        time_col: Column with date/time values.
+        metric_col: Optional numeric metric to aggregate by day (else uses daily counts).
+
+    Returns:
+        Dict with time_col, points, and optional acf7/acf30 values.
+    """
     out: Dict[str, Any] = {"time_col": time_col}
     try:
         sdf = df[[time_col]].copy()
@@ -250,7 +314,16 @@ def compute_timeseries_hints(df: pd.DataFrame, time_col: str, metric_col: Option
         if metric_col and metric_col in df.columns and ptypes.is_numeric_dtype(df[metric_col]):
             sdf[metric_col] = pd.to_numeric(df[metric_col], errors="coerce")
             agg = sdf.set_index(time_col)[metric_col].resample('D').mean()
-            out["periods"] = int(agg.dropna().shape[0])
+            series = agg.dropna()
+        else:
+            # fallback to count per day
+            agg = sdf.set_index(time_col).resample('D').size()
+            series = agg.astype(float)
+        out["points"] = int(series.shape[0])
+        if series.shape[0] >= 14:
+            out["acf7"] = float(series.autocorr(lag=7))
+        if series.shape[0] >= 30:
+            out["acf30"] = float(series.autocorr(lag=30))
     except Exception:
         pass
     return out
@@ -268,7 +341,8 @@ def generate_basic_plots(job_id: str, df: pd.DataFrame, plots_dir: Path) -> Dict
         plt.title(f"Hist: {c}"); plt.tight_layout()
         p = plots_dir / f"hist_{_slug(c)}.png"; plt.savefig(p); plt.close(); hist_urls.append(f"{base_url}/hist_{_slug(c)}.png")
     # Categorical bars
-    cat_cols = [c for c in df.columns if (ptypes.is_object_dtype(df[c]) or ptypes.is_categorical_dtype(df[c]))][:PLOTS_PER_CATEG]
+    from pandas.api.types import CategoricalDtype
+    cat_cols = [c for c in df.columns if (ptypes.is_object_dtype(df[c]) or isinstance(df[c].dtype, CategoricalDtype))][:PLOTS_PER_CATEG]
     bar_urls: List[str] = []
     for c in cat_cols:
         plt.figure(figsize=(4,3)); df[c].value_counts().head(10).plot(kind='bar'); plt.title(f"Top: {c}"); plt.tight_layout()
@@ -279,4 +353,40 @@ def generate_basic_plots(job_id: str, df: pd.DataFrame, plots_dir: Path) -> Dict
     miss_pct.plot(kind='bar'); plt.title('Missingness % (top 20)'); plt.tight_layout()
     miss_path = plots_dir / "missingness.png"; plt.savefig(miss_path); plt.close()
     return {"histograms": hist_urls, "categoricals": bar_urls, "missingness": f"{base_url}/missingness.png"}
+
+
+def generate_basic_plots_storage(storage, job_id: str, df: pd.DataFrame) -> Dict[str, Any]:
+    """Generate plots and store via storage adapter. Returns URLs via storage.url_for."""
+    from io import BytesIO
+
+    def _slug(s: str) -> str: return re.sub(r"[^A-Za-z0-9_-]+","_", str(s))
+
+    # Numeric histograms
+    num_cols = [c for c in df.columns if ptypes.is_numeric_dtype(df[c])][:PLOTS_PER_NUMERIC]
+    hist_urls: List[str] = []
+    for c in num_cols:
+        buf = BytesIO()
+        plt.figure(figsize=(4,3)); sns.histplot(df[c].dropna(), kde=False, bins=30)
+        plt.title(f"Hist: {c}"); plt.tight_layout(); plt.savefig(buf, format='png'); plt.close()
+        storage.put_file(job_id, f"plots/hist_{_slug(c)}.png", buf.getvalue(), content_type="image/png")
+        hist_urls.append(storage.url_for(job_id, f"plots/hist_{_slug(c)}.png"))
+
+    # Categorical bars
+    from pandas.api.types import CategoricalDtype
+    cat_cols = [c for c in df.columns if (ptypes.is_object_dtype(df[c]) or isinstance(df[c].dtype, CategoricalDtype))][:PLOTS_PER_CATEG]
+    bar_urls: List[str] = []
+    for c in cat_cols:
+        buf = BytesIO()
+        plt.figure(figsize=(4,3)); df[c].value_counts().head(10).plot(kind='bar'); plt.title(f"Top: {c}"); plt.tight_layout(); plt.savefig(buf, format='png'); plt.close()
+        storage.put_file(job_id, f"plots/bar_{_slug(c)}.png", buf.getvalue(), content_type="image/png")
+        bar_urls.append(storage.url_for(job_id, f"plots/bar_{_slug(c)}.png"))
+
+    # Missingness bar
+    buf = BytesIO()
+    plt.figure(figsize=(5,3));
+    miss_pct = (df.isna().mean() * 100).sort_values(ascending=False).head(20)
+    miss_pct.plot(kind='bar'); plt.title('Missingness % (top 20)'); plt.tight_layout(); plt.savefig(buf, format='png'); plt.close()
+    storage.put_file(job_id, "plots/missingness.png", buf.getvalue(), content_type="image/png")
+
+    return {"histograms": hist_urls, "categoricals": bar_urls, "missingness": storage.url_for(job_id, "plots/missingness.png")}
 

@@ -20,3 +20,11 @@ run:
 docker-build:
 	docker build -t ai-ds-backend:local .
 
+
+
+bench:
+	$(PY) bench/run_bench.py --out bench/bench.csv
+
+bench-report:
+	$(PY) bench/report.py --csv bench/bench.csv --out bench/bench.html --thresholds bench/thresholds.yaml
+	@echo "Open backend/bench/bench.html in your browser"
