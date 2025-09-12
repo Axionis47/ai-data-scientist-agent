@@ -1,0 +1,24 @@
+# Seed benchmark datasets (small/fast variants)
+# Path is relative to backend/data/bench or absolute. You can extend this list.
+
+datasets:
+  - id: titanic
+    path: https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv
+    target: Survived
+    task: classification
+
+  - id: iris
+    path: https://raw.githubusercontent.com/mwaskom/seaborn-data/master/iris.csv
+    target: species
+    task: classification
+
+  - id: tips
+    path: https://raw.githubusercontent.com/mwaskom/seaborn-data/master/tips.csv
+    target: tip
+    task: regression
+
+  - id: adult-small
+    path: https://raw.githubusercontent.com/ageron/handson-ml2/master/datasets/lifesat/gdp_per_capita.csv
+    target: 2017
+    task: regression
+

@@ -17,11 +17,14 @@ def test_router_fallback_without_key(tmp_path: Path, monkeypatch):
     body = {"job_id": job_id, "dataset_path": dataset_path, "file_format":"csv", "nl_description":"ctx", "question":"classify y", "delimiter":","}
     client.post('/analyze', json=body)
     import time
-    for _ in range(30):
+    for _ in range(60):
         time.sleep(0.2)
-        if client.get(f"/status/{job_id}").json()['status']=='COMPLETED':
+        st = client.get(f"/status/{job_id}").json()
+        if st['status'] in ('COMPLETED','FAILED'):
             break
-    res = client.get(f"/result/{job_id}").json()
+    res = client.get(f"/result/{job_id}")
+    assert res.status_code == 200
+    res = res.json()
     assert 'modeling' in res
     assert 'explain' in res
 

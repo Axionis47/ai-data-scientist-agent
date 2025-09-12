@@ -1,0 +1,31 @@
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    environment:
+      - MAX_CONCURRENT_JOBS=1
+      - EDA_TIMEOUT_S=0
+      - MODEL_TIMEOUT_S=0
+      - REPORT_TIMEOUT_S=0
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-} # optional for LLM-based reporting
+      - REPORT_JSON_FIRST=${REPORT_JSON_FIRST:-false}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/data:/app/data
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
