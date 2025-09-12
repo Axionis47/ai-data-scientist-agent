@@ -4,7 +4,11 @@ import json
 from typing import Dict, Any, List
 
 # Post-model critique feature flags
-CRITIQUE_POST_MODEL = os.getenv("CRITIQUE_POST_MODEL", "false").lower() in ("1", "true", "yes")
+CRITIQUE_POST_MODEL = os.getenv("CRITIQUE_POST_MODEL", "false").lower() in (
+    "1",
+    "true",
+    "yes",
+)
 
 
 def _minority_ratio(modeling: Dict[str, Any]) -> float | None:
@@ -21,7 +25,9 @@ def _minority_ratio(modeling: Dict[str, Any]) -> float | None:
     return None
 
 
-def deterministic_checks(eda: Dict[str, Any], modeling: Dict[str, Any]) -> Dict[str, Any]:
+def deterministic_checks(
+    eda: Dict[str, Any], modeling: Dict[str, Any]
+) -> Dict[str, Any]:
     """Cheap, objective checks to ground LLM experts and provide signals.
     Returns a dict with booleans/values the router can use.
     """
@@ -39,18 +45,28 @@ def deterministic_checks(eda: Dict[str, Any], modeling: Dict[str, Any]) -> Dict[
         signals["class_minority_ratio"] = frac
 
         # Category density & cardinality
-        nunique = (eda.get("nunique") or {})
+        nunique = eda.get("nunique") or {}
         rows = int((eda.get("shape") or [0, 0])[0] or 0)
-        high_card_cols = [c for c, n in nunique.items() if isinstance(n, (int, float)) and n > max(50, 0.5 * rows)]
+        high_card_cols = [
+            c
+            for c, n in nunique.items()
+            if isinstance(n, (int, float)) and n > max(50, 0.5 * rows)
+        ]
         signals["high_card_cols"] = high_card_cols
 
         # Time-like signals
-        signals["has_time_col"] = bool(eda.get("time_columns") or eda.get("time_like_candidates"))
+        signals["has_time_col"] = bool(
+            eda.get("time_columns") or eda.get("time_like_candidates")
+        )
 
         # Overfit proxy (if available): cv vs test metric gap on best model
         best = modeling.get("best") or {}
         cv_mean = best.get("cv_mean")
-        test_metric = best.get("f1") if modeling.get("task") == "classification" else best.get("r2")
+        test_metric = (
+            best.get("f1")
+            if modeling.get("task") == "classification"
+            else best.get("r2")
+        )
         if isinstance(cv_mean, (int, float)) and isinstance(test_metric, (int, float)):
             signals["overfit_gap"] = float(cv_mean - test_metric)
         else:
@@ -60,7 +76,9 @@ def deterministic_checks(eda: Dict[str, Any], modeling: Dict[str, Any]) -> Dict[
     return signals
 
 
-def modeling_choices_expert(eda: Dict[str, Any], modeling: Dict[str, Any], signals: Dict[str, Any]) -> Dict[str, Any]:
+def modeling_choices_expert(
+    eda: Dict[str, Any], modeling: Dict[str, Any], signals: Dict[str, Any]
+) -> Dict[str, Any]:
     """Rule-based first pass expert to avoid LLM costs. Emits normalized output.
     We can later swap internals with a JSON-first LLM call.
     """
@@ -69,8 +87,18 @@ def modeling_choices_expert(eda: Dict[str, Any], modeling: Dict[str, Any], signa
 
     # Imbalance handling
     frac = signals.get("class_minority_ratio")
-    if modeling.get("task") == "classification" and isinstance(frac, (int, float)) and frac < 0.15:
-        issues.append({"id": "imbalance_detected", "severity": "high", "evidence": f"minority={frac:.2f}"})
+    if (
+        modeling.get("task") == "classification"
+        and isinstance(frac, (int, float))
+        and frac < 0.15
+    ):
+        issues.append(
+            {
+                "id": "imbalance_detected",
+                "severity": "high",
+                "evidence": f"minority={frac:.2f}",
+            }
+        )
         recs.append({"action": "enable_threshold_tuning", "params": {"metric": "f1"}})
         recs.append({"action": "set_metric", "params": {"primary": "f1"}})
         recs.append({"action": "enable_class_weight", "params": {"mode": "balanced"}})
@@ -83,13 +111,26 @@ def modeling_choices_expert(eda: Dict[str, Any], modeling: Dict[str, Any], signa
     # High cardinality categoricals
     hc = signals.get("high_card_cols") or []
     if len(hc) > 0:
-        issues.append({"id": "high_cardinality", "severity": "medium", "evidence": {"cols": hc[:5]}})
-        recs.append({"action": "enable_high_cardinality", "params": {"method": "topk+other", "k": 50}})
+        issues.append(
+            {
+                "id": "high_cardinality",
+                "severity": "medium",
+                "evidence": {"cols": hc[:5]},
+            }
+        )
+        recs.append(
+            {
+                "action": "enable_high_cardinality",
+                "params": {"method": "topk+other", "k": 50},
+            }
+        )
 
     # Overfit gap
     gap = signals.get("overfit_gap")
     if isinstance(gap, (int, float)) and gap > 0.1:
-        issues.append({"id": "cv_test_gap_large", "severity": "medium", "evidence": {"gap": gap}})
+        issues.append(
+            {"id": "cv_test_gap_large", "severity": "medium", "evidence": {"gap": gap}}
+        )
 
     return {
         "expert": "modeling_choices",
@@ -99,7 +140,13 @@ def modeling_choices_expert(eda: Dict[str, Any], modeling: Dict[str, Any], signa
     }
 
 
-def critique_post_model(job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any], explain: Dict[str, Any], manifest: Dict[str, Any]) -> Dict[str, Any]:
+def critique_post_model(
+    job_id: str,
+    eda: Dict[str, Any],
+    modeling: Dict[str, Any],
+    explain: Dict[str, Any],
+    manifest: Dict[str, Any],
+) -> Dict[str, Any]:
     """Main entry to produce a critique after modeling.
     Currently deterministic + rule-based; can be extended to LLM MoE.
     """
@@ -123,4 +170,3 @@ def critique_post_model(job_id: str, eda: Dict[str, Any], modeling: Dict[str, An
         return out
     except Exception as e:
         return {"phase": "post_modeling", "error": str(e)}
-

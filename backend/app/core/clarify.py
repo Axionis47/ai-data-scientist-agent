@@ -17,11 +17,11 @@ def apply_clarification(job_id: str, text: str, manifest: Dict[str, Any]):
         manifest.setdefault("framing", {})["metric"] = metric_m.group(1)
     # persist manifest change
     job_dir = JOBS_DIR / job_id
-    (job_dir / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+    (job_dir / "manifest.json").write_text(
+        json.dumps(manifest, indent=2), encoding="utf-8"
+    )
     # write checkpoint
     try:
         (job_dir / "manifest.done").write_text("ok", encoding="utf-8")
     except Exception:
         pass
-
-

@@ -1,4 +1,5 @@
 import json
+
 """Reporting engine: builds report_html via JSON-first LLM path or deterministic fallback.
 
 Key function: reporting_expert(job_id, eda, modeling, explain) -> HTML
@@ -12,10 +13,19 @@ import os
 from typing import Dict, Any
 from ..core.logs import model_decision
 from ..core.config import (
-    REPORT_PRIMARY, REPORT_ACCENT, REPORT_BG, REPORT_SURFACE, REPORT_TEXT,
-    REPORT_MUTED, REPORT_OK, REPORT_WARN, REPORT_ERROR, REPORT_FONT_FAMILY,
-    REPORT_LOGO_URL
+    REPORT_PRIMARY,
+    REPORT_ACCENT,
+    REPORT_BG,
+    REPORT_SURFACE,
+    REPORT_TEXT,
+    REPORT_MUTED,
+    REPORT_OK,
+    REPORT_WARN,
+    REPORT_ERROR,
+    REPORT_FONT_FAMILY,
+    REPORT_LOGO_URL,
 )
+
 try:
     from openai import OpenAI  # type: ignore
 except Exception:  # pragma: no cover - optional dependency for CI
@@ -24,10 +34,12 @@ except Exception:  # pragma: no cover - optional dependency for CI
 from ..core.config import REPORT_INLINE_ASSETS
 import base64, pathlib
 from contextlib import contextmanager
+
 try:
     from opentelemetry import trace  # type: ignore
 except Exception:
     trace = None  # type: ignore
+
 
 @contextmanager
 def _span(name: str, attributes: Dict[str, Any] | None = None):
@@ -48,7 +60,11 @@ def _span(name: str, attributes: Dict[str, Any] | None = None):
 def _inline_img(path_or_url: str) -> str:
     try:
         # Read flag dynamically to support test monkeypatch of env
-        inline_enabled = os.getenv("REPORT_INLINE_ASSETS", "false").lower() in ("1","true","yes")
+        inline_enabled = os.getenv("REPORT_INLINE_ASSETS", "false").lower() in (
+            "1",
+            "true",
+            "yes",
+        )
         if not inline_enabled:
             return path_or_url
         if not path_or_url or path_or_url.startswith("http"):
@@ -59,6 +75,7 @@ def _inline_img(path_or_url: str) -> str:
         if p.startswith("/static/jobs/"):
             # /static/jobs/<id>/plots/x.png -> backend/app/data/jobs/<id>/plots/x.png via config JOBS_DIR
             from ..core.config import JOBS_DIR
+
             parts = p.split("/static/jobs/")[-1].split("/")
             # parts like [<id>, plots, x.png]
             fs = JOBS_DIR / parts[0] / "/".join(parts[1:])
@@ -73,21 +90,37 @@ def _inline_img(path_or_url: str) -> str:
 
 
 def _render_model_card(job_id: str, modeling: Dict[str, Any]) -> str:
-    best = (modeling.get("best") or {})
+    best = modeling.get("best") or {}
     task = modeling.get("task")
     feats = modeling.get("features") or {}
     cands = modeling.get("selected_tools") or []
-    metric_primary = ("f1" if task=="classification" else ("r2" if (best.get("r2") is not None) else "rmse"))
+    metric_primary = (
+        "f1"
+        if task == "classification"
+        else ("r2" if (best.get("r2") is not None) else "rmse")
+    )
     metric_value = best.get(metric_primary)
     rows = [
         ("Model", best.get("name") or "N/A"),
         ("Task", task or "N/A"),
-        ("Primary", f"{metric_primary}: {metric_value}" if metric_value is not None else "N/A"),
-        ("Features", f"{feats.get('numeric',0)} numeric, {feats.get('categorical',0)} categorical"),
+        (
+            "Primary",
+            f"{metric_primary}: {metric_value}" if metric_value is not None else "N/A",
+        ),
+        (
+            "Features",
+            f"{feats.get('numeric',0)} numeric, {feats.get('categorical',0)} categorical",
+        ),
         ("Candidates", ", ".join(cands) if cands else "N/A"),
     ]
-    cells = "".join([f"<div><div style='font-weight:600'>{k}</div><div>{v}</div></div>" for k,v in rows])
+    cells = "".join(
+        [
+            f"<div><div style='font-weight:600'>{k}</div><div>{v}</div></div>"
+            for k, v in rows
+        ]
+    )
     return f"<div class='card'><div class='h1'>Model Card</div><div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px'>{cells}</div></div>"
+
 
 from ..core.config import REPORT_JSON_FIRST
 from ..core.schemas import validate_report_json
@@ -96,14 +129,23 @@ from ..core.schemas import validate_report_json
 def _render_from_json(job_id: str, j: dict) -> str:
     # Minimal deterministic HTML from a validated JSON report object
     title = j.get("title") or f"Job {job_id} Report"
-    kpi_html = "".join([f"<div class='card'><div class='h1'>{k}</div><div class='kpi'>{v}</div></div>" for k, v in (j.get("kpis") or {}).items()])
+    kpi_html = "".join(
+        [
+            f"<div class='card'><div class='h1'>{k}</div><div class='kpi'>{v}</div></div>"
+            for k, v in (j.get("kpis") or {}).items()
+        ]
+    )
     sections = []
-    for s in (j.get("sections") or []):
+    for s in j.get("sections") or []:
         if "html" in s:
-            sections.append(f"<div class='card section'><div class='h1'>{s.get('heading') or ''}</div>{s.get('html')}</div>")
+            sections.append(
+                f"<div class='card section'><div class='h1'>{s.get('heading') or ''}</div>{s.get('html')}</div>"
+            )
         else:
             items = "".join([f"<li>{str(it)}</li>" for it in (s.get("items") or [])])
-            sections.append(f"<div class='card section'><div class='h1'>{s.get('heading') or ''}</div><ul>{items}</ul></div>")
+            sections.append(
+                f"<div class='card section'><div class='h1'>{s.get('heading') or ''}</div><ul>{items}</ul></div>"
+            )
     # Optional model card in JSON
     mc = j.get("model_card")
     model_card_html = ""
@@ -111,22 +153,37 @@ def _render_from_json(job_id: str, j: dict) -> str:
         rows = []
         rows.append(("Model", mc.get("name", "N/A")))
         rows.append(("Task", mc.get("task", "N/A")))
-        mp = mc.get("metric_primary"); mv = mc.get("metric_value")
+        mp = mc.get("metric_primary")
+        mv = mc.get("metric_value")
         rows.append(("Primary", f"{mp}: {mv}" if (mp and mv is not None) else "N/A"))
         feats = mc.get("features") or {}
-        rows.append(("Features", f"{feats.get('numeric',0)} numeric, {feats.get('categorical',0)} categorical"))
+        rows.append(
+            (
+                "Features",
+                f"{feats.get('numeric',0)} numeric, {feats.get('categorical',0)} categorical",
+            )
+        )
         cands = mc.get("candidates") or []
         rows.append(("Candidates", ", ".join(cands) if cands else "N/A"))
         if mc.get("threshold") is not None:
             rows.append(("Threshold", mc.get("threshold")))
-        cells = "".join([f"<div><div style='font-weight:600'>{k}</div><div>{v}</div></div>" for k,v in rows])
+        cells = "".join(
+            [
+                f"<div><div style='font-weight:600'>{k}</div><div>{v}</div></div>"
+                for k, v in rows
+            ]
+        )
         model_card_html = f"<div class='card section'><div class='h1'>Model Card</div><div style='display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px'>{cells}</div></div>"
     base = _fallback_report_html(job_id, {}, {}, {})
-    base = base.replace("<div class='grid section'>", f"<div class='grid section'>{kpi_html}")
+    base = base.replace(
+        "<div class='grid section'>", f"<div class='grid section'>{kpi_html}"
+    )
     return base + "".join(sections) + model_card_html
 
 
-def _fallback_report_html(job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any], explain: Dict[str, Any]) -> str:
+def _fallback_report_html(
+    job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any], explain: Dict[str, Any]
+) -> str:
     css = f"""
     <style>
       :root{{ --bg:{REPORT_BG or '#0b0f14'}; --surface:{REPORT_SURFACE or '#10161b'}; --text:{REPORT_TEXT or '#e6edf3'}; --muted:{REPORT_MUTED or '#94a3b8'}; --primary:{REPORT_PRIMARY or '#3b82f6'}; --accent:{REPORT_ACCENT or '#22d3ee'}; --ok:{REPORT_OK or '#22c55e'}; --warn:{REPORT_WARN or '#f59e0b'}; --error:{REPORT_ERROR or '#ef4444'}; }}
@@ -145,11 +202,32 @@ def _fallback_report_html(job_id: str, eda: Dict[str, Any], modeling: Dict[str, 
     """
     best = (modeling or {}).get("best") or {}
     task = (modeling or {}).get("task") or "descriptive"
-    kpi = "F1: {:.3f}".format(best.get("f1", 0.0)) if task=="classification" else "RMSE: {:.3f}".format(best.get("rmse", 0.0))
-    pdps = "".join([f'<div class="card"><img src="{_inline_img(p)}"/></div>' for p in (explain.get("pdp") or [])])
-    roc_html = f'<div class="card"><img src="{_inline_img(explain.get("roc"))}"/></div>' if explain.get("roc") else ""
-    pr_html = f'<div class="card"><img src="{_inline_img(explain.get("pr"))}"/></div>' if explain.get("pr") else ""
-    brand = f"<div class='brand'><img src='{REPORT_LOGO_URL}'/><div class='muted'>Auto‑generated analysis</div></div>" if REPORT_LOGO_URL else ""
+    kpi = (
+        "F1: {:.3f}".format(best.get("f1", 0.0))
+        if task == "classification"
+        else "RMSE: {:.3f}".format(best.get("rmse", 0.0))
+    )
+    pdps = "".join(
+        [
+            f'<div class="card"><img src="{_inline_img(p)}"/></div>'
+            for p in (explain.get("pdp") or [])
+        ]
+    )
+    roc_html = (
+        f'<div class="card"><img src="{_inline_img(explain.get("roc"))}"/></div>'
+        if explain.get("roc")
+        else ""
+    )
+    pr_html = (
+        f'<div class="card"><img src="{_inline_img(explain.get("pr"))}"/></div>'
+        if explain.get("pr")
+        else ""
+    )
+    brand = (
+        f"<div class='brand'><img src='{REPORT_LOGO_URL}'/><div class='muted'>Auto‑generated analysis</div></div>"
+        if REPORT_LOGO_URL
+        else ""
+    )
     card_html = _render_model_card(job_id, modeling)
     return f"""
     {css}
@@ -193,7 +271,9 @@ def _fallback_report_html(job_id: str, eda: Dict[str, Any], modeling: Dict[str, 
     """
 
 
-def reporting_expert(job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any], explain: Dict[str, Any]) -> str:
+def reporting_expert(
+    job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any], explain: Dict[str, Any]
+) -> str:
     api_key = os.getenv("OPENAI_API_KEY")
 
     # JSON-first path (feature-flagged)
@@ -206,19 +286,32 @@ def reporting_expert(job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any],
                     "content": (
                         "Return ONLY JSON with keys: title (str), kpis (object of numeric values), "
                         "sections (array of objects each with heading and either items[] or html string). "
-                        "No markdown, no prose outside JSON. Context:" + json.dumps({
-                            "job_id": job_id,
-                            "kpis": modeling.get("best") or {},
-                            "task": modeling.get("task"),
-                            "notes": (modeling.get("notes") or []),
-                            "explain": {"roc": explain.get("roc"), "pr": explain.get("pr"), "pdp": explain.get("pdp")},
-                        })[:4000]
-                    )
+                        "No markdown, no prose outside JSON. Context:"
+                        + json.dumps(
+                            {
+                                "job_id": job_id,
+                                "kpis": modeling.get("best") or {},
+                                "task": modeling.get("task"),
+                                "notes": (modeling.get("notes") or []),
+                                "explain": {
+                                    "roc": explain.get("roc"),
+                                    "pr": explain.get("pr"),
+                                    "pdp": explain.get("pdp"),
+                                },
+                            }
+                        )[:4000]
+                    ),
                 }
                 rj = client.chat.completions.create(
                     model="gpt-4o-mini",
-                    messages=[{"role": "system", "content": "You strictly output JSON. No extra text."}, jprompt],
-                    temperature=0.1
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": "You strictly output JSON. No extra text.",
+                        },
+                        jprompt,
+                    ],
+                    temperature=0.1,
                 )
                 raw = rj.choices[0].message.content or "{}"
                 # Best-effort strip code fences
@@ -229,14 +322,22 @@ def reporting_expert(job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any],
                     model_decision(job_id, "Reporting: JSON-first report validated")
                     return _render_from_json(job_id, obj)
                 else:
-                    model_decision(job_id, f"Reporting: JSON-first invalid, errs={errs}; falling back to HTML mode")
+                    model_decision(
+                        job_id,
+                        f"Reporting: JSON-first invalid, errs={errs}; falling back to HTML mode",
+                    )
             except Exception as e:
-                model_decision(job_id, f"Reporting: JSON-first failed: {e}; falling back")
+                model_decision(
+                    job_id, f"Reporting: JSON-first failed: {e}; falling back"
+                )
 
     # HTML path (OpenAI or fallback)
     if not api_key or OpenAI is None:
         with _span("report.fallback", {"job_id": job_id, "reason": "no_openai"}):
-            model_decision(job_id, "Reporting: fallback template used (OpenAI unavailable or no OPENAI_API_KEY)")
+            model_decision(
+                job_id,
+                "Reporting: fallback template used (OpenAI unavailable or no OPENAI_API_KEY)",
+            )
             return _fallback_report_html(job_id, eda, modeling, explain)
     try:
         with _span("report.html_llm", {"job_id": job_id}):
@@ -246,7 +347,11 @@ def reporting_expert(job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any],
                 "kpis": modeling.get("best") or {},
                 "task": modeling.get("task"),
                 "notes": (modeling.get("notes") or []),
-                "explain": {"roc": explain.get("roc"), "pr": explain.get("pr"), "pdp": explain.get("pdp")},
+                "explain": {
+                    "roc": explain.get("roc"),
+                    "pr": explain.get("pr"),
+                    "pdp": explain.get("pdp"),
+                },
                 "brand": {
                     "primary": REPORT_PRIMARY,
                     "accent": REPORT_ACCENT,
@@ -256,16 +361,22 @@ def reporting_expert(job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any],
                     "muted": REPORT_MUTED,
                     "font": REPORT_FONT_FAMILY,
                     "logo": REPORT_LOGO_URL,
-                }
+                },
             }
             prompt = {
                 "role": "user",
-                "content": f"Generate clean, self-contained HTML with inline CSS for an executive summary. Use brand tokens if provided. Include headings, KPIs, bullets, and embed ROC/PR images if present. Context: {json.dumps(ctx)[:4000]}"
+                "content": f"Generate clean, self-contained HTML with inline CSS for an executive summary. Use brand tokens if provided. Include headings, KPIs, bullets, and embed ROC/PR images if present. Context: {json.dumps(ctx)[:4000]}",
             }
             r = client.chat.completions.create(
                 model="gpt-4o-mini",
-                messages=[{"role": "system", "content": "You are a precise, reliable report writer. Return HTML only."}, prompt],
-                temperature=0.2
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a precise, reliable report writer. Return HTML only.",
+                    },
+                    prompt,
+                ],
+                temperature=0.2,
             )
             html = r.choices[0].message.content or ""
             if "<html" not in html and "<div" not in html:
@@ -273,7 +384,8 @@ def reporting_expert(job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any],
             model_decision(job_id, "Reporting: generated via OpenAI")
             return html
     except Exception as e:
-        with _span("report.fallback_on_error", {"job_id": job_id, "error": str(e)[:200]}):
+        with _span(
+            "report.fallback_on_error", {"job_id": job_id, "error": str(e)[:200]}
+        ):
             model_decision(job_id, f"Reporting failed: {e}; using fallback")
             return _fallback_report_html(job_id, eda, modeling, explain)
-
