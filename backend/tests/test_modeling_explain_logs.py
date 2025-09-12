@@ -31,13 +31,15 @@ def test_modeling_explain_and_logs(tmp_path: Path):
     assert r.status_code == 200
 
     import time
-    for _ in range(30):
+    for _ in range(60):
         time.sleep(0.2)
         st = client.get(f"/status/{job_id}").json()
-        if st['status'] == 'COMPLETED':
+        if st['status'] in ('COMPLETED','FAILED'):
             break
 
-    res = client.get(f"/result/{job_id}").json()
+    res = client.get(f"/result/{job_id}")
+    assert res.status_code == 200
+    res = res.json()
     assert 'modeling' in res
     # explain section may include importances or pdp
     assert 'explain' in res

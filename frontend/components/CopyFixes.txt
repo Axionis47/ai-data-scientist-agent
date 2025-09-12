@@ -1,0 +1,7 @@
+Proposed UI copy fixes:
+
+- FileDropZone: "CSV, TSV, Excel (XLS/XLSX). Or click to select." (remove JSON/Parquet)
+- New page: Replace "Dataset path (local or mounted)" with "Use Sample Data" button that calls POST /sample
+- Index page: Remove reference to backend/data/sample/titanic_small.csv
+- Results: Replace modeling.score with modeling.best (f1|r2|rmse) depending on task; hide "Model Card" until supported
+

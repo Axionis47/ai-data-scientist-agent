@@ -66,6 +66,32 @@ app.add_middleware(
 from fastapi.staticfiles import StaticFiles
 app.mount("/static/jobs", StaticFiles(directory=str(JOBS_DIR)), name="jobs-static")
 
+# Guard to prevent serving original/ files by default
+from fastapi import Request
+from fastapi.responses import Response
+from .core.config import STATIC_EXPOSE_ORIGINAL
+
+@app.middleware("http")
+async def block_original_static(request: Request, call_next):
+    try:
+        url = request.url.path or ""
+        if (not STATIC_EXPOSE_ORIGINAL) and url.startswith("/static/jobs/") and "/original/" in url:
+            return Response("Forbidden", status_code=403)
+    except Exception:
+        pass
+    return await call_next(request)
+
+
+# Expose _is_large_file for tests (wrapper around pipeline helper)
+from .pipeline.run import _is_large_file as _pipeline_is_large
+from pathlib import Path as _Path
+
+def _is_large_file(p: _Path) -> bool:  # pragma: no cover - thin wrapper for tests
+    try:
+        return _pipeline_is_large(p)
+    except Exception:
+        return False
+
 # --- Models ---
 class UploadResponse(BaseModel):
     job_id: str
@@ -121,8 +147,9 @@ class EDAOutput(BaseModel):
     plots: Optional[Dict[str, Any]] = None
     target_relations: Optional[Dict[str, Any]] = None
 
-# --- In-memory job store (replaceable) ---
-JOBS: Dict[str, Dict[str, Any]] = {}
+# --- Job store (thread-safe, replaceable) ---
+from .platform.jobstore import get_job_store
+JOB_STORE = get_job_store()
 
 # --- Utils ---
 class EDAValidationError(Exception):
@@ -150,20 +177,7 @@ from collections import Counter
 # The inlined duplicates are removed in favor of imports at the top of this file.
 
 # --- Clarify helpers ---
-_target_re = re.compile(r"target\s*=\s*([A-Za-z0-9_\-]+)", re.IGNORECASE)
-_metric_re = re.compile(r"metric\s*=\s*([A-Za-z0-9_\-]+)", re.IGNORECASE)
-
-
-def apply_clarification(job_id: str, text: str, manifest: Dict[str, Any]):
-    target_m = _target_re.search(text or "")
-    if target_m:
-        manifest.setdefault("framing", {})["target"] = target_m.group(1)
-    metric_m = _metric_re.search(text or "")
-    if metric_m:
-        manifest.setdefault("framing", {})["metric"] = metric_m.group(1)
-    # persist manifest change
-    job_dir = JOBS_DIR / job_id
-    (job_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+# Use centralized implementation in app.core.clarify (imported above)
 
 # --- Pipeline ---
 from .pipeline.run import run_pipeline as _run_pipeline
@@ -177,8 +191,13 @@ async def upload(file: UploadFile = File(...)):
     orig_dir = job_dir / "original"
     orig_dir.mkdir(parents=True, exist_ok=True)
 
-    # Save file safely
+    # Validate extension before save
     safe_name = _safe_filename(file.filename or "dataset")
+    ext = os.path.splitext(safe_name)[1].lower()
+    if ext not in ALLOWED_EXTS:
+        raise HTTPException(400, detail=f"Unsupported file type: {ext}")
+
+    # Save file safely
     dst = orig_dir / safe_name
     try:
         with dst.open("wb") as out:
@@ -208,7 +227,7 @@ async def upload(file: UploadFile = File(...)):
             sheet_names = None
 
     # Build minimal job record
-    JOBS[job_id] = {
+    JOB_STORE.create(job_id, {
         "status": "UPLOADED",
         "progress": 5,
         "stage": "ingest",
@@ -216,7 +235,7 @@ async def upload(file: UploadFile = File(...)):
         "dataset_path": str(dst),
         "file_format": file_format,
         "created_at": datetime.now(timezone.utc).isoformat(),
-    }
+    })
 
     return UploadResponse(job_id=job_id, dataset_path=str(dst), file_format=file_format, sheet_names=sheet_names)
 
@@ -228,13 +247,16 @@ def analyze(body: AnalyzeRequest):
     job_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize job record if new
-    job = JOBS.setdefault(job_id, {
-        "status": "CREATED",
-        "progress": 0,
-        "stage": "ingest",
-        "messages": [],
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    })
+    job = JOB_STORE.get(job_id)
+    if not job:
+        JOB_STORE.create(job_id, {
+            "status": "CREATED",
+            "progress": 0,
+            "stage": "ingest",
+            "messages": [],
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        })
+        job = JOB_STORE.get(job_id) or {}
 
     # Persist manifest
     manifest = {
@@ -270,6 +292,11 @@ def analyze(body: AnalyzeRequest):
         "sha256": sha256,
         "size_bytes": dpath.stat().st_size,
     })
+    # Hint for large-file path; allows tests to monkeypatch _is_large_file via main
+    try:
+        manifest["force_large"] = bool(_is_large_file(dpath))
+    except Exception:
+        manifest["force_large"] = False
 
     # Quick preview for schema inference
     preview: Dict[str, Any] = {}
@@ -302,16 +329,28 @@ def analyze(body: AnalyzeRequest):
     # Save manifest
     (job_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
 
-    # Kick off pipeline in background and return immediately
-    job.update({"status": "QUEUED", "stage": "eda", "progress": 10})
-    t = threading.Thread(target=_run_pipeline, args=(job_id, manifest), daemon=True)
-    t.start()
+    # Kick off pipeline via queue runner and return immediately
+    JOB_STORE.update(job_id, {"status": "QUEUED", "stage": "eda", "progress": 10})
 
+    # Use background queue with concurrency limits
+    from .platform.queue_runner import get_default_queue_runner
+    def handler(payload: Dict[str, Any]) -> None:
+        _run_pipeline(payload["job_id"], payload["manifest"], None, JOB_STORE)
+    qr = get_default_queue_runner(handler)
+    qr.enqueue({"job_id": job_id, "manifest": manifest})
     return {"job_id": job_id}
+
+@app.post("/cancel/{job_id}")
+def cancel(job_id: str):
+    job = JOB_STORE.get(job_id)
+    if not job:
+        raise HTTPException(404, detail="job not found")
+    JOB_STORE.update(job_id, {"cancel": True})
+    return {"ok": True}
 
 @app.get("/status/{job_id}", response_model=StatusResponse)
 def status(job_id: str):
-    job = JOBS.get(job_id)
+    job = JOB_STORE.get(job_id)
     if not job:
         raise HTTPException(404, detail="job not found")
     return StatusResponse(
@@ -327,6 +366,57 @@ def health():
     return {"ok": True}
 
 
+@app.post("/sample")
+def sample():
+    """Create a job with a small built-in sample CSV and start analysis.
+    Useful for demos; avoids unsafe arbitrary local paths.
+    """
+    import pandas as pd
+    job_id = uuid.uuid4().hex
+    job_dir = JOBS_DIR / job_id
+    orig_dir = job_dir / "original"
+    orig_dir.mkdir(parents=True, exist_ok=True)
+    # Build a tiny Titanic-like dataset
+    df = pd.DataFrame({
+        "Pclass": [3,1,3,1,3,2,3,1,2,3],
+        "Sex": ["male","female","female","female","male","male","female","male","female","male"],
+        "Age": [22,38,26,35,35,54,2,27,14,20],
+        "Fare": [7.25,71.2833,7.925,53.1,8.05,51.8625,21.075,11.1333,30.0708,8.4583],
+        "Survived": [0,1,1,1,0,0,1,1,0,0]
+    })
+    sample_path = orig_dir / "titanic_tiny.csv"
+    df.to_csv(sample_path, index=False)
+    # Initialize job record
+    JOB_STORE.create(job_id, {
+        "status": "UPLOADED",
+        "progress": 5,
+        "stage": "ingest",
+        "messages": [{"role": "system", "content": "Sample dataset prepared."}],
+        "dataset_path": str(sample_path),
+        "file_format": "csv",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    })
+    # Enqueue analysis
+    manifest = {
+        "job_id": job_id,
+        "dataset_path": str(sample_path),
+        "file_format": "csv",
+        "nl_description": "Demo Titanic tiny sample",
+        "question": "Classify which passengers survived. target=Survived",
+        "sheet_name": None,
+        "delimiter": ",",
+    }
+    # Persist manifest
+    (job_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
+    (job_dir / "manifest.done").write_text("ok")
+    def handler(payload: Dict[str, Any]) -> None:
+        _run_pipeline(payload["job_id"], payload["manifest"], None, JOB_STORE)
+    from .platform.queue_runner import get_default_queue_runner
+    qr = get_default_queue_runner(handler)
+    qr.enqueue({"job_id": job_id, "manifest": manifest})
+    return {"job_id": job_id}
+
+
 @app.get("/result/{job_id}")
 def result(job_id: str):
     job_dir = JOBS_DIR / job_id
@@ -340,7 +430,7 @@ def result(job_id: str):
 
 @app.post("/clarify")
 def clarify(body: ClarifyRequest):
-    job = JOBS.get(body.job_id)
+    job = JOB_STORE.get(body.job_id)
     if not job:
         raise HTTPException(404, detail="job not found")
     job.setdefault("messages", []).append({"role": "user", "content": body.message})
@@ -355,7 +445,11 @@ def clarify(body: ClarifyRequest):
     # If pipeline was waiting on clarify, resume from modeling stage
     if job.get("stage") == "clarify" and job.get("status") == "RUNNING":
         job.setdefault("messages", []).append({"role": "assistant", "content": "Thanks, resuming."})
-        threading.Thread(target=_run_pipeline, args=(body.job_id, manifest, "modeling"), daemon=True).start()
+        from .platform.queue_runner import get_default_queue_runner
+        def handler(payload: Dict[str, Any]) -> None:
+            _run_pipeline(payload["job_id"], payload["manifest"], "modeling", JOB_STORE)
+        qr = get_default_queue_runner(handler)
+        qr.enqueue({"job_id": body.job_id, "manifest": manifest})
     else:
         job.setdefault("messages", []).append({"role": "assistant", "content": "Clarification noted."})
     return {"ok": True}

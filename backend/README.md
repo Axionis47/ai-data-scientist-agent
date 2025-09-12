@@ -1,28 +1,32 @@
-ai-data-scientist-agent (Backend)
+# ai-data-scientist-agent (Backend)
 
-Quick Start
-
+## Quick Start
 1. Create venv and install deps:
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -U pip
-   pip install -e .
-
+   - python3 -m venv .venv
+   - source .venv/bin/activate
+   - pip install -U pip && pip install -e . -r requirements-dev.txt
 2. Run server:
-   uvicorn app.main:app --reload --port 8000
+   - uvicorn app.main:app --reload --port 8000
 
-Environment
+## Environment
 - Python 3.10+
-- FastAPI, Uvicorn, Pandas, openpyxl
+- FastAPI, Uvicorn, Pandas, scikit-learn, openpyxl
 
-API
+## API
 - POST /upload: multipart file upload, returns {job_id, dataset_path, file_format, sheet_names?}
 - POST /analyze: JSON {job_id?, dataset_path, file_format?, nl_description, question, sheet_name?, delimiter?}
+- POST /clarify: JSON {job_id, message}
 - GET /status/{job_id}
 - GET /result/{job_id}
-- POST /clarify
+- POST /cancel/{job_id}
+- GET /health
 
-Storage
-- backend/data/jobs/{job_id}/original/<file>
-- manifest.json, result.json
+## Storage
+- data/jobs/{job_id}/original/<file>
+- manifest.json, result.json, eda.json, modeling.json, plots/, telemetry.jsonl
 
+## Further docs
+- docs/ARCHITECTURE.md — modules, stages, state/queue, artifacts
+- docs/OPERATIONS.md — env vars, endpoints, resumability, benchmarks, troubleshooting
+
+- docs/API.md — endpoints and contracts

@@ -31,13 +31,19 @@ export default function Results(){
       <div className="grid" style={{marginBottom:16}}>
         <div className="card" style={{flex:'1 1 260px'}}><KpiCard label="Columns" value={(eda.columns||[]).length} /></div>
         <div className="card" style={{flex:'1 1 260px'}}><KpiCard label="Task" value={modeling.task || 'N/A'} /></div>
-        <div className="card" style={{flex:'1 1 260px'}}><KpiCard label="Score" value={typeof modeling.score==='number'? modeling.score.toFixed(3): 'N/A'} /></div>
+        <div className="card" style={{flex:'1 1 260px'}}>
+          {modeling.task === 'classification' ? (
+            <KpiCard label="F1 (best)" value={typeof modeling?.best?.f1==='number'? modeling.best.f1.toFixed(3): 'N/A'} />
+          ) : (
+            <KpiCard label="R2 (best)" value={typeof modeling?.best?.r2==='number'? modeling.best.r2.toFixed(3): (typeof modeling?.best?.rmse==='number'? `RMSE ${modeling.best.rmse.toFixed(3)}` : 'N/A')} />
+          )}
+        </div>
       </div>
 
       <div className="card" style={{marginBottom:16}}>
         <h3>Executive Synopsis</h3>
-        <p>Objective: {modeling.task || 'descriptive'}. Target: {modeling.target || 'N/A'}.</p>
-        <p>Highlights: {modeling.note || 'Baseline built when a target is provided; EDA always available.'}</p>
+        <p>Objective: {modeling.task || 'descriptive'}.</p>
+        <p>Highlights: best={modeling?.best?.name || 'N/A'}; candidates={(modeling?.selected_tools||[]).join(', ') || 'n/a'}; features={modeling?.features? `${modeling.features.numeric||0} numeric, ${modeling.features.categorical||0} categorical` : 'n/a'}</p>
       </div>
 
       <div className="grid" style={{marginBottom:16}}>
@@ -70,43 +76,6 @@ export default function Results(){
             </div>
           ) : (
             <div>No plots generated.</div>
-      {modeling?.card && (
-        <div className="card" style={{marginBottom:16}}>
-          <h3>Model Card</h3>
-          <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(220px,1fr))', gap:12}}>
-            <div>
-              <div style={{fontWeight:600}}>Model</div>
-              <div>{modeling.card.model_name}</div>
-            </div>
-            <div>
-              <div style={{fontWeight:600}}>Primary Metric</div>
-              <div>{modeling.card.primary_metric_name}: {modeling.card.primary_metric_value}</div>
-            </div>
-            {modeling.card?.threshold && (
-              <div>
-                <div style={{fontWeight:600}}>Threshold</div>
-                <div>{modeling.card.threshold}</div>
-              </div>
-            )}
-            <div>
-              <div style={{fontWeight:600}}>CV Strategy</div>
-              <div>{modeling.card.cv_strategy}</div>
-            </div>
-          </div>
-          <div style={{marginTop:12}}>
-            <div style={{fontWeight:600}}>Top Features</div>
-            <pre style={{whiteSpace:'pre-wrap'}}>{JSON.stringify(modeling.card.top_features, null, 2)}</pre>
-          </div>
-          {modeling.card?.warnings?.length ? (
-            <div style={{marginTop:12}}>
-              <div style={{fontWeight:600}}>Warnings</div>
-              <ul>
-                {modeling.card.warnings.map((w:string, i:number)=> (<li key={i}>{w}</li>))}
-              </ul>
-            </div>
-          ) : null}
-        </div>
-      )}
 
           )}
         </div>

@@ -53,3 +53,23 @@ jobs:
           files: backend/coverage.xml
           fail_ci_if_error: false
 
+
+
+  docker-smoke:
+    runs-on: ubuntu-latest
+    needs: lint-type-test
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compose up and smoke
+        run: |
+          docker compose up --build -d
+          i=0; until curl -s -S -m 2 -f http://localhost:8000/health >/dev/null; do \
+            i=$((i+1)); \
+            if [ $i -gt 60 ]; then echo "Timeout waiting for backend health"; docker compose logs backend; exit 1; fi; \
+            sleep 1; \
+          done
+          bash scripts/smoke.sh
+          docker compose down
+        env:
+          REPORT_JSON_FIRST: "true"
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}

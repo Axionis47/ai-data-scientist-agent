@@ -32,6 +32,9 @@ class LocalThreadQueue(JobQueue):
             item = self._q.get()
             try:
                 self._handler(item)
+            except Exception as e:
+                import logging
+                logging.getLogger(__name__).exception("Job handler error: %s", e)
             finally:
                 self._q.task_done()
 
