@@ -30,7 +30,9 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def transition_stage(job_store, job_id: str, new_stage: str, extra_patch: Optional[Dict[str, Any]] = None) -> None:
+def transition_stage(
+    job_store, job_id: str, new_stage: str, extra_patch: Optional[Dict[str, Any]] = None
+) -> None:
     """Validate and perform a stage transition. Records a timestamp per stage in job['timeline'].
     If transition is illegal, we still set the stage (to avoid hard failures), but add a 'illegal_transition' note.
     """
@@ -43,9 +45,15 @@ def transition_stage(job_store, job_id: str, new_stage: str, extra_patch: Option
     patch: Dict[str, Any] = {"stage": new_stage, "timeline": timeline}
     if not legal:
         notes = list(job.get("notes") or [])
-        notes.append({"type": "illegal_transition", "from": prev, "to": new_stage, "at": _now_iso()})
+        notes.append(
+            {
+                "type": "illegal_transition",
+                "from": prev,
+                "to": new_stage,
+                "at": _now_iso(),
+            }
+        )
         patch["notes"] = notes
     if extra_patch:
         patch.update(extra_patch)
     job_store.update(job_id, patch)
-

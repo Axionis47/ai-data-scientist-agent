@@ -14,7 +14,13 @@ from ..core.config import JOBS_DIR, REPORT_LOGO_URL
 class Storage:
     """Abstract storage interface."""
 
-    def put_file(self, job_id: str, rel_path: str, data: bytes, content_type: Optional[str] = None) -> str:
+    def put_file(
+        self,
+        job_id: str,
+        rel_path: str,
+        data: bytes,
+        content_type: Optional[str] = None,
+    ) -> str:
         raise NotImplementedError
 
     def url_for(self, job_id: str, rel_path: str, expires_seconds: int = 3600) -> str:
@@ -28,7 +34,13 @@ class LocalStorage(Storage):
     def __init__(self, base: Path | None = None):
         self.base = base or JOBS_DIR
 
-    def put_file(self, job_id: str, rel_path: str, data: bytes, content_type: Optional[str] = None) -> str:
+    def put_file(
+        self,
+        job_id: str,
+        rel_path: str,
+        data: bytes,
+        content_type: Optional[str] = None,
+    ) -> str:
         p = self.base / job_id / rel_path
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(data)
@@ -50,7 +62,13 @@ class GCSStorage(Storage):  # pragma: no cover - requires GCP env
         key = f"jobs/{job_id}/{Path(rel_path).as_posix()}"
         return self.bucket.blob(key)
 
-    def put_file(self, job_id: str, rel_path: str, data: bytes, content_type: Optional[str] = None) -> str:
+    def put_file(
+        self,
+        job_id: str,
+        rel_path: str,
+        data: bytes,
+        content_type: Optional[str] = None,
+    ) -> str:
         blob = self._blob(job_id, rel_path)
         if content_type:
             blob.content_type = content_type
@@ -60,7 +78,9 @@ class GCSStorage(Storage):  # pragma: no cover - requires GCP env
     def url_for(self, job_id: str, rel_path: str, expires_seconds: int = 3600) -> str:
         blob = self._blob(job_id, rel_path)
         try:
-            return blob.generate_signed_url(version="v4", expiration=expires_seconds, method="GET")
+            return blob.generate_signed_url(
+                version="v4", expiration=expires_seconds, method="GET"
+            )
         except Exception:
             # Public bucket case (not recommended by default)
             return f"https://storage.googleapis.com/{self.bucket.name}/{blob.name}"
@@ -74,4 +94,3 @@ def get_storage() -> Storage:
             raise RuntimeError("GCS_BUCKET env var required for GCS storage")
         return GCSStorage(bucket)
     return LocalStorage()
-

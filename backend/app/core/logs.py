@@ -32,4 +32,3 @@ def model_decision(job_id: str, message: str):
             f.write(message + "\n")
     except Exception as e:
         log.debug(f"model_decision logging failed: {e}")
-

@@ -34,6 +34,7 @@ class LocalThreadQueue(JobQueue):
                 self._handler(item)
             except Exception as e:
                 import logging
+
                 logging.getLogger(__name__).exception("Job handler error: %s", e)
             finally:
                 self._q.task_done()
@@ -62,4 +63,3 @@ def get_job_queue(local_handler: Callable[[Dict[str, Any]], None]) -> JobQueue:
             raise RuntimeError("PUBSUB_TOPIC_PATH env var required for pubsub queue")
         return PubSubQueue(topic)
     return LocalThreadQueue(local_handler)
-
