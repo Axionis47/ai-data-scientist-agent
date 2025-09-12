@@ -19,4 +19,3 @@ def append_run_telemetry(job_id: str, payload: Dict[str, Any]) -> None:
             f.write(json.dumps(payload) + "\n")
     except Exception:
         pass
-

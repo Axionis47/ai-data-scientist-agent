@@ -62,4 +62,3 @@ def get_job_store() -> JobStore:
     if backend == "firestore":
         return FirestoreJobStore()
     return InMemoryJobStore()
-

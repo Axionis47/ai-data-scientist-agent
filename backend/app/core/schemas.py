@@ -14,7 +14,11 @@ def validate_modeling(modeling: Any) -> List[str]:
     if not isinstance(modeling.get("best"), dict):
         errs.append("best missing or not a dict")
     feats = modeling.get("features")
-    if not (isinstance(feats, dict) and isinstance(feats.get("numeric"), int) and isinstance(feats.get("categorical"), int)):
+    if not (
+        isinstance(feats, dict)
+        and isinstance(feats.get("numeric"), int)
+        and isinstance(feats.get("categorical"), int)
+    ):
         errs.append("features missing or invalid")
     tools = modeling.get("selected_tools")
     if not (isinstance(tools, list)):
@@ -38,6 +42,7 @@ def validate_eda(eda: Any) -> List[str]:
 #   "sections": [{"heading": str, "items": [str]}]  OR  [{"heading": str, "html": str}],
 #   "model_card"?: {"name": str, "task": str, "metric_primary": str, "metric_value": number, "features": {"numeric": int, "categorical": int}, "candidates": [str], "threshold"?: number}
 # }
+
 
 def validate_report_json(obj: Any) -> List[str]:
     errs: List[str] = []
@@ -78,4 +83,3 @@ def validate_report_json(obj: Any) -> List[str]:
             if cand is not None and not isinstance(cand, list):
                 errs.append("model_card.candidates invalid")
     return errs
-

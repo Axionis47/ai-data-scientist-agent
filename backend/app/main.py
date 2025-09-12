@@ -21,6 +21,7 @@ from pydantic import BaseModel, Field
 # Env for OpenAI optional
 try:
     from dotenv import load_dotenv
+
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 except Exception:
     pass
@@ -34,20 +35,47 @@ from .core.logs import log, eda_logger, model_logger, eda_decision, model_decisi
 
 # --- Config moved to core.config ---
 from .core.config import (
-    ROOT, DATA_DIR, JOBS_DIR, MAX_UPLOAD_MB, ALLOWED_EXTS, LARGE_FILE_MB,
-    BLEND_DELTA, EARLY_STOP_SAMPLE, HGB_MIN_ROWS, CALIBRATE_ENABLED, CV_FOLDS,
-    PDP_TOP_NUM, SEARCH_TIME_BUDGET, SHAP_ENABLED, SHAP_MAX_ROWS,
-    REPORT_PRIMARY, REPORT_ACCENT, REPORT_BG, REPORT_SURFACE, REPORT_TEXT, REPORT_MUTED,
-    REPORT_OK, REPORT_WARN, REPORT_ERROR, REPORT_FONT_FAMILY, REPORT_LOGO_URL
+    ROOT,
+    DATA_DIR,
+    JOBS_DIR,
+    MAX_UPLOAD_MB,
+    ALLOWED_EXTS,
+    LARGE_FILE_MB,
+    BLEND_DELTA,
+    EARLY_STOP_SAMPLE,
+    HGB_MIN_ROWS,
+    CALIBRATE_ENABLED,
+    CV_FOLDS,
+    PDP_TOP_NUM,
+    SEARCH_TIME_BUDGET,
+    SHAP_ENABLED,
+    SHAP_MAX_ROWS,
+    REPORT_PRIMARY,
+    REPORT_ACCENT,
+    REPORT_BG,
+    REPORT_SURFACE,
+    REPORT_TEXT,
+    REPORT_MUTED,
+    REPORT_OK,
+    REPORT_WARN,
+    REPORT_ERROR,
+    REPORT_FONT_FAMILY,
+    REPORT_LOGO_URL,
 )
 
 # Modularized imports
 from .agent.router import build_context_pack, plan_with_router
 from .reporting.report import reporting_expert
+
 # Lazy-import run_modeling within _run_pipeline to avoid import-time dependency failures
 from .eda.eda import (
-    compute_eda, compute_target_relations, compute_timeseries_hints,
-    load_dataframe, load_sampled_chunked_csv, infer_format, detect_delimiter
+    compute_eda,
+    compute_target_relations,
+    compute_timeseries_hints,
+    load_dataframe,
+    load_sampled_chunked_csv,
+    infer_format,
+    detect_delimiter,
 )
 from .core.clarify import apply_clarification
 
@@ -64,6 +92,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 from fastapi.staticfiles import StaticFiles
+
 app.mount("/static/jobs", StaticFiles(directory=str(JOBS_DIR)), name="jobs-static")
 
 # Guard to prevent serving original/ files by default
@@ -71,11 +100,16 @@ from fastapi import Request
 from fastapi.responses import Response
 from .core.config import STATIC_EXPOSE_ORIGINAL
 
+
 @app.middleware("http")
 async def block_original_static(request: Request, call_next):
     try:
         url = request.url.path or ""
-        if (not STATIC_EXPOSE_ORIGINAL) and url.startswith("/static/jobs/") and "/original/" in url:
+        if (
+            (not STATIC_EXPOSE_ORIGINAL)
+            and url.startswith("/static/jobs/")
+            and "/original/" in url
+        ):
             return Response("Forbidden", status_code=403)
     except Exception:
         pass
@@ -86,11 +120,13 @@ async def block_original_static(request: Request, call_next):
 from .pipeline.run import _is_large_file as _pipeline_is_large
 from pathlib import Path as _Path
 
+
 def _is_large_file(p: _Path) -> bool:  # pragma: no cover - thin wrapper for tests
     try:
         return _pipeline_is_large(p)
     except Exception:
         return False
+
 
 # --- Models ---
 class UploadResponse(BaseModel):
@@ -98,6 +134,7 @@ class UploadResponse(BaseModel):
     dataset_path: str
     file_format: str
     sheet_names: Optional[List[str]] = None
+
 
 class AnalyzeRequest(BaseModel):
     job_id: Optional[str] = None
@@ -108,6 +145,7 @@ class AnalyzeRequest(BaseModel):
     sheet_name: Optional[str] = None
     delimiter: Optional[str] = None
 
+
 class StatusResponse(BaseModel):
     job_id: str
     status: str
@@ -115,9 +153,11 @@ class StatusResponse(BaseModel):
     stage: Optional[str] = None
     messages: List[Dict[str, str]] = Field(default_factory=list)
 
+
 class ClarifyRequest(BaseModel):
     job_id: str
     message: str
+
 
 # Minimal EDA schema for validation (fields optional to be resilient)
 class EDAOutput(BaseModel):
@@ -147,17 +187,22 @@ class EDAOutput(BaseModel):
     plots: Optional[Dict[str, Any]] = None
     target_relations: Optional[Dict[str, Any]] = None
 
+
 # --- Job store (thread-safe, replaceable) ---
 from .platform.jobstore import get_job_store
+
 JOB_STORE = get_job_store()
+
 
 # --- Utils ---
 class EDAValidationError(Exception):
     pass
 
+
 def _safe_filename(name: str) -> str:
     base = os.path.basename(name)
     return re.sub(r"[^A-Za-z0-9._-]", "_", base)
+
 
 def _sha256_of_file(path: Path) -> str:
     h = hashlib.sha256()
@@ -165,7 +210,6 @@ def _sha256_of_file(path: Path) -> str:
         for chunk in iter(lambda: f.read(1024 * 1024), b""):
             h.update(chunk)
     return h.hexdigest()
-
 
 
 # --- Data loading & EDA helpers moved to app.eda.eda ---
@@ -181,6 +225,7 @@ from collections import Counter
 
 # --- Pipeline ---
 from .pipeline.run import run_pipeline as _run_pipeline
+
 
 # --- Core endpoints ---
 @app.post("/upload", response_model=UploadResponse)
@@ -227,17 +272,26 @@ async def upload(file: UploadFile = File(...)):
             sheet_names = None
 
     # Build minimal job record
-    JOB_STORE.create(job_id, {
-        "status": "UPLOADED",
-        "progress": 5,
-        "stage": "ingest",
-        "messages": [{"role": "system", "content": "File uploaded."}],
-        "dataset_path": str(dst),
-        "file_format": file_format,
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    })
+    JOB_STORE.create(
+        job_id,
+        {
+            "status": "UPLOADED",
+            "progress": 5,
+            "stage": "ingest",
+            "messages": [{"role": "system", "content": "File uploaded."}],
+            "dataset_path": str(dst),
+            "file_format": file_format,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
 
-    return UploadResponse(job_id=job_id, dataset_path=str(dst), file_format=file_format, sheet_names=sheet_names)
+    return UploadResponse(
+        job_id=job_id,
+        dataset_path=str(dst),
+        file_format=file_format,
+        sheet_names=sheet_names,
+    )
+
 
 @app.post("/analyze")
 def analyze(body: AnalyzeRequest):
@@ -249,13 +303,16 @@ def analyze(body: AnalyzeRequest):
     # Initialize job record if new
     job = JOB_STORE.get(job_id)
     if not job:
-        JOB_STORE.create(job_id, {
-            "status": "CREATED",
-            "progress": 0,
-            "stage": "ingest",
-            "messages": [],
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        })
+        JOB_STORE.create(
+            job_id,
+            {
+                "status": "CREATED",
+                "progress": 0,
+                "stage": "ingest",
+                "messages": [],
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+        )
         job = JOB_STORE.get(job_id) or {}
 
     # Persist manifest
@@ -287,11 +344,13 @@ def analyze(body: AnalyzeRequest):
         sha256 = _sha256_of_file(dpath)
     except Exception:
         sha256 = None
-    manifest.update({
-        "source_file": os.path.basename(str(dpath)),
-        "sha256": sha256,
-        "size_bytes": dpath.stat().st_size,
-    })
+    manifest.update(
+        {
+            "source_file": os.path.basename(str(dpath)),
+            "sha256": sha256,
+            "size_bytes": dpath.stat().st_size,
+        }
+    )
     # Hint for large-file path; allows tests to monkeypatch _is_large_file via main
     try:
         manifest["force_large"] = bool(_is_large_file(dpath))
@@ -316,13 +375,17 @@ def analyze(body: AnalyzeRequest):
                 sep = ","
             df = pd.read_csv(dpath, sep=sep, nrows=5000)
         preview = {
-            "columns": [{"name": c, "dtype": str(t)} for c, t in zip(df.columns, df.dtypes)],
+            "columns": [
+                {"name": c, "dtype": str(t)} for c, t in zip(df.columns, df.dtypes)
+            ],
             "head": df.head(5).to_dict(orient="records"),
             "rows": int(df.shape[0]),
             "cols": int(df.shape[1]),
         }
     except Exception as e:
-        job.setdefault("messages", []).append({"role": "system", "content": f"Preview failed: {e}"})
+        job.setdefault("messages", []).append(
+            {"role": "system", "content": f"Preview failed: {e}"}
+        )
 
     manifest["preview"] = preview
 
@@ -334,11 +397,14 @@ def analyze(body: AnalyzeRequest):
 
     # Use background queue with concurrency limits
     from .platform.queue_runner import get_default_queue_runner
+
     def handler(payload: Dict[str, Any]) -> None:
         _run_pipeline(payload["job_id"], payload["manifest"], None, JOB_STORE)
+
     qr = get_default_queue_runner(handler)
     qr.enqueue({"job_id": job_id, "manifest": manifest})
     return {"job_id": job_id}
+
 
 @app.post("/cancel/{job_id}")
 def cancel(job_id: str):
@@ -347,6 +413,7 @@ def cancel(job_id: str):
         raise HTTPException(404, detail="job not found")
     JOB_STORE.update(job_id, {"cancel": True})
     return {"ok": True}
+
 
 @app.get("/status/{job_id}", response_model=StatusResponse)
 def status(job_id: str):
@@ -361,6 +428,7 @@ def status(job_id: str):
         messages=job.get("messages", []),
     )
 
+
 @app.get("/health")
 def health():
     return {"ok": True}
@@ -372,30 +440,58 @@ def sample():
     Useful for demos; avoids unsafe arbitrary local paths.
     """
     import pandas as pd
+
     job_id = uuid.uuid4().hex
     job_dir = JOBS_DIR / job_id
     orig_dir = job_dir / "original"
     orig_dir.mkdir(parents=True, exist_ok=True)
     # Build a tiny Titanic-like dataset
-    df = pd.DataFrame({
-        "Pclass": [3,1,3,1,3,2,3,1,2,3],
-        "Sex": ["male","female","female","female","male","male","female","male","female","male"],
-        "Age": [22,38,26,35,35,54,2,27,14,20],
-        "Fare": [7.25,71.2833,7.925,53.1,8.05,51.8625,21.075,11.1333,30.0708,8.4583],
-        "Survived": [0,1,1,1,0,0,1,1,0,0]
-    })
+    df = pd.DataFrame(
+        {
+            "Pclass": [3, 1, 3, 1, 3, 2, 3, 1, 2, 3],
+            "Sex": [
+                "male",
+                "female",
+                "female",
+                "female",
+                "male",
+                "male",
+                "female",
+                "male",
+                "female",
+                "male",
+            ],
+            "Age": [22, 38, 26, 35, 35, 54, 2, 27, 14, 20],
+            "Fare": [
+                7.25,
+                71.2833,
+                7.925,
+                53.1,
+                8.05,
+                51.8625,
+                21.075,
+                11.1333,
+                30.0708,
+                8.4583,
+            ],
+            "Survived": [0, 1, 1, 1, 0, 0, 1, 1, 0, 0],
+        }
+    )
     sample_path = orig_dir / "titanic_tiny.csv"
     df.to_csv(sample_path, index=False)
     # Initialize job record
-    JOB_STORE.create(job_id, {
-        "status": "UPLOADED",
-        "progress": 5,
-        "stage": "ingest",
-        "messages": [{"role": "system", "content": "Sample dataset prepared."}],
-        "dataset_path": str(sample_path),
-        "file_format": "csv",
-        "created_at": datetime.now(timezone.utc).isoformat(),
-    })
+    JOB_STORE.create(
+        job_id,
+        {
+            "status": "UPLOADED",
+            "progress": 5,
+            "stage": "ingest",
+            "messages": [{"role": "system", "content": "Sample dataset prepared."}],
+            "dataset_path": str(sample_path),
+            "file_format": "csv",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        },
+    )
     # Enqueue analysis
     manifest = {
         "job_id": job_id,
@@ -409,9 +505,12 @@ def sample():
     # Persist manifest
     (job_dir / "manifest.json").write_text(json.dumps(manifest, indent=2))
     (job_dir / "manifest.done").write_text("ok")
+
     def handler(payload: Dict[str, Any]) -> None:
         _run_pipeline(payload["job_id"], payload["manifest"], None, JOB_STORE)
+
     from .platform.queue_runner import get_default_queue_runner
+
     qr = get_default_queue_runner(handler)
     qr.enqueue({"job_id": job_id, "manifest": manifest})
     return {"job_id": job_id}
@@ -427,6 +526,7 @@ def result(job_id: str):
         return JSONResponse(content=json.loads(p.read_text()))
     except Exception as e:
         raise HTTPException(500, detail=f"failed to load result: {e}")
+
 
 @app.post("/clarify")
 def clarify(body: ClarifyRequest):
@@ -444,21 +544,29 @@ def clarify(body: ClarifyRequest):
     apply_clarification(body.job_id, body.message, manifest)
     # If pipeline was waiting on clarify, resume from modeling stage
     if job.get("stage") == "clarify" and job.get("status") == "RUNNING":
-        job.setdefault("messages", []).append({"role": "assistant", "content": "Thanks, resuming."})
+        job.setdefault("messages", []).append(
+            {"role": "assistant", "content": "Thanks, resuming."}
+        )
         from .platform.queue_runner import get_default_queue_runner
+
         def handler(payload: Dict[str, Any]) -> None:
             _run_pipeline(payload["job_id"], payload["manifest"], "modeling", JOB_STORE)
+
         qr = get_default_queue_runner(handler)
         qr.enqueue({"job_id": body.job_id, "manifest": manifest})
     else:
-        job.setdefault("messages", []).append({"role": "assistant", "content": "Clarification noted."})
+        job.setdefault("messages", []).append(
+            {"role": "assistant", "content": "Clarification noted."}
+        )
     return {"ok": True}
+
 
 # --- Entrypoint ---
 def run():
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
+
 
 if __name__ == "__main__":
     run()
-
