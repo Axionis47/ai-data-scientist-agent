@@ -4,5 +4,7 @@ black
 mypy
 bandit
 
+httpx>=0.28.0
+
 
 pdoc>=14
