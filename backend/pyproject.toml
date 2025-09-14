@@ -23,3 +23,7 @@ ai-ds-backend = "app.main:run"
 [tool.hatch.metadata]
 allow-direct-references = true
 
+
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
