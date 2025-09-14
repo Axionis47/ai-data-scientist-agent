@@ -25,6 +25,10 @@ PY
 <<<"$JOB_JSON")
 if [[ -z "$JOB_ID" ]]; then
   say "Failed to parse job_id from /sample"
+  echo "[smoke] Raw response from /sample:" >&2
+  echo "$JOB_JSON" >&2
+  # dump backend logs for debugging
+  docker compose logs backend | tail -n 200 || true
   exit 3
 fi
 say "Job: $JOB_ID"
