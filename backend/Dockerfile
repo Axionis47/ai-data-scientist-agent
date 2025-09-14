@@ -4,10 +4,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_NO_CACHE_DIR=1
 
-# System deps for scientific stack
+# System deps for scientific stack (use OpenBLAS/LAPACK; ATLAS is not available on Debian bookworm)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc g++ \
-    libatlas-base-dev gfortran \
+    build-essential gcc g++ gfortran \
+    libopenblas-dev liblapack-dev pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
