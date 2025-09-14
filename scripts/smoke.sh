@@ -13,7 +13,8 @@ fi
 say "Health: OK"
 
 say "Starting sample job"
-JOB_ID=$(curl -s -S -X POST "$API/sample" | python3 - <<'PY'
+JOB_JSON=$(curl -s -S -f -m 10 -X POST "$API/sample" || true)
+JOB_ID=$(python3 - <<'PY'
 import sys, json
 try:
     s=sys.stdin.read().strip()
@@ -21,7 +22,7 @@ try:
 except Exception:
     print("")
 PY
-)
+<<<"$JOB_JSON")
 if [[ -z "$JOB_ID" ]]; then
   say "Failed to parse job_id from /sample"
   exit 3
