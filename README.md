@@ -25,6 +25,20 @@ An AI agent that ingests a dataset, runs fast EDA, optionally builds a simple ML
 - Dockerfile provided for backend
 - CD workflow builds/pushes image to GHCR (latest + sha), with Trivy image scan
 
+## OpenAI setup
+- Local (backend/.env):
+  - Create backend/.env (gitignored) with:
+    - OPENAI_API_KEY=sk-...
+  - Start backend: uvicorn app.main:app --reload --port 8000
+- Docker Compose:
+  - Create a .env in repo root (same folder as docker-compose.yml) with:
+    - OPENAI_API_KEY=sk-...
+  - Run: docker compose up -d backend
+- GitHub Actions (docker-smoke):
+  - Add repository secret OPENAI_API_KEY and re-run workflow
+
+Note: Without a key, the app falls back to a non-OpenAI path for report generation.
+
 ## Serverless-ready (GCP)
 - Adapters scaffolded for Storage (Local/GCS), JobStore (Memory/Firestore), JobQueue (Local/PubSub)
 - Local dev remains unchanged; future PR will wire adapters behind env flags
