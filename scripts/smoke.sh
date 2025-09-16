@@ -13,8 +13,10 @@ fi
 say "Health: OK"
 
 say "Starting sample job"
-JOB_JSON=$(curl -s -S -f -m 10 -X POST "$API/sample" || true)
-JOB_ID=$(python3 - <<'PY'
+JOB_JSON=""
+for i in 1 2 3 4 5; do
+  JOB_JSON=$(curl -s -S -m 10 -H 'Accept: application/json' -X POST "$API/sample" || true)
+  JOB_ID=$(python3 - <<'PY'
 import sys, json
 try:
     s=sys.stdin.read().strip()
@@ -23,6 +25,12 @@ except Exception:
     print("")
 PY
 <<<"$JOB_JSON")
+  if [[ -n "$JOB_ID" ]]; then
+    break
+  fi
+  say "Retrying /sample ($i) ..."
+  sleep 2
+done
 if [[ -z "$JOB_ID" ]]; then
   say "Failed to parse job_id from /sample"
   echo "[smoke] Raw response from /sample:" >&2
