@@ -434,6 +434,46 @@ def health():
     return {"ok": True}
 
 
+
+@app.get("/openai-smoke")
+def openai_smoke(live: bool = False):
+    """Lightweight OpenAI readiness probe.
+
+    - live=false (default): only checks that the SDK is importable and a key is present.
+    - live=true: performs a tiny chat completion against gpt-4o-mini to confirm network access.
+    """
+    import os
+    try:
+        from openai import OpenAI  # type: ignore
+        sdk_installed = True
+    except Exception:
+        OpenAI = None  # type: ignore
+        sdk_installed = False
+
+    has_key = bool(os.getenv("OPENAI_API_KEY"))
+
+    if not live:
+        return {"ok": bool(sdk_installed and has_key), "sdk_installed": sdk_installed, "has_key": has_key, "live": False}
+
+    if not sdk_installed:
+        return {"ok": False, "error": "sdk_not_installed", "live": True}
+    if not has_key:
+        return {"ok": False, "error": "no_key", "live": True}
+
+    try:
+        client = OpenAI()
+        r = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": "Reply with the word OK."}],
+            temperature=0.0,
+            max_tokens=3,
+        )
+        txt = (r.choices[0].message.content or "").strip()
+        return {"ok": txt.upper().startswith("OK"), "reply": txt, "live": True}
+    except Exception as e:  # pragma: no cover
+        return {"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}", "live": True}
+
+
 @app.post("/sample")
 def sample():
     """Create a job with a small built-in sample CSV and start analysis.
@@ -522,8 +562,26 @@ def result(job_id: str):
     p = job_dir / "result.json"
     if not p.exists():
         raise HTTPException(404, detail="result not ready")
+
+    def _json_safe(x):
+        import math
+        try:
+            import numpy as np  # type: ignore
+        except Exception:  # pragma: no cover
+            np = None  # type: ignore
+        if isinstance(x, dict):
+            return {k: _json_safe(v) for k, v in x.items()}
+        if isinstance(x, list):
+            return [_json_safe(v) for v in x]
+        if np is not None and isinstance(x, (np.floating, np.integer)):
+            x = x.item()
+        if isinstance(x, float):
+            return x if math.isfinite(x) else None
+        return x
+
     try:
-        return JSONResponse(content=json.loads(p.read_text()))
+        data = json.loads(p.read_text())
+        return JSONResponse(content=_json_safe(data))
     except Exception as e:
         raise HTTPException(500, detail=f"failed to load result: {e}")
 
