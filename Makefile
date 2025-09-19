@@ -1,6 +1,6 @@
 # Root Makefile for developer ergonomics
 
-.PHONY: up down logs backend-tests frontend-build bench bench-report smoke compose-smoke
+.PHONY: up down logs backend-tests frontend-build bench bench-report smoke compose-smoke openai-smoke docker-openai-smoke
 
 # Local dev (non-Docker): run backend and frontend in two terminals
 # (kept as comments for reference)
@@ -43,6 +43,11 @@ compose-smoke:
 	bash scripts/smoke.sh || (docker compose logs backend; docker compose down; exit 1)
 	docker compose down
 
+openai-smoke:
+	cd backend && $(MAKE) openai-smoke
+
+docker-openai-smoke:
+	cd backend && $(MAKE) docker-openai-smoke
 
 compose-rebuild-frontend:
 	docker compose up -d --build frontend
