@@ -9,3 +9,5 @@
 - app/core/telemetry.py
   - Appends structured entries to telemetry.jsonl per job
 
+Notes for beginners
+- If a flag name is confusing, search for it in the codebase to see usage.

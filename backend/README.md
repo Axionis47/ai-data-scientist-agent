@@ -1,11 +1,11 @@
 # ai-data-scientist-agent (Backend)
 
-## Quick Start
-1. Create venv and install deps:
+## Quick start
+1. Create a virtualenv and install dependencies:
    - python3 -m venv .venv
    - source .venv/bin/activate
    - pip install -U pip && pip install -e . -r requirements-dev.txt
-2. Run server:
+2. Run the server:
    - uvicorn app.main:app --reload --port 8000
 
 ## Environment
@@ -25,8 +25,12 @@
 - data/jobs/{job_id}/original/<file>
 - manifest.json, result.json, eda.json, modeling.json, plots/, telemetry.jsonl
 
-## Further docs
-- docs/ARCHITECTURE.md — modules, stages, state/queue, artifacts
-- docs/OPERATIONS.md — env vars, endpoints, resumability, benchmarks, troubleshooting
+## Friendly notes (for first-time AI agent builders)
+- It is okay to start small. Try with a tiny CSV and use only /upload and /analyze first.
+- If OpenAI key is missing, reporting will use a deterministic fallback.
+- Logs in backend/data/jobs/{job_id}/telemetry.jsonl can help when something looks odd.
 
+## Further docs
+- docs/ARCHITECTURE.md — modules, stages, state/queue, artefacts
+- docs/OPERATIONS.md — env vars, endpoints, resumability, benchmarks, troubleshooting
 - docs/API.md — endpoints and contracts

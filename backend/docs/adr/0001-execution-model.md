@@ -6,7 +6,7 @@ We need reliable background execution, progress visibility, and deterministic re
 ## Decision
 - Use a local thread-backed job queue (QueueRunner + LocalThreadQueue) with a concurrency cap (MAX_CONCURRENT_JOBS)
 - Represent pipeline lifecycle as a simple state machine with validated transitions and a timeline
-- Write stage artifacts and .done markers (eda/modeling/report) to support skip-on-resume
+- Write stage artefacts and .done markers (eda/modeling/report) to support skip-on-resume
 - Enforce per-stage timeouts (EDA/MODEL/REPORT) and allow cancellation via flag checked at heavy boundaries
 
 ## Consequences
