@@ -21,7 +21,7 @@ POST /upload
   - 400: unsupported file type
   - 413: file too large
 
-## Analyze
+## Analyse
 POST /analyze
 
 - Request (JSON):
@@ -40,7 +40,7 @@ POST /analyze
 ```
 { "job_id": "<hex>" }
 ```
-- Behavior: enqueues a background run of the pipeline for the job.
+- Behaviour: enqueues a background run of the pipeline for the job.
 
 ## Status
 GET /status/{job_id}

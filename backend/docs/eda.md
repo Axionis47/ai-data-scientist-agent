@@ -19,9 +19,9 @@ Functions
 - compute_timeseries_hints(df, time_col, metric_col)
   - Daily aggregation and coarse autocorr hints (acf7/acf30)
 - generate_basic_plots(job_id, df, plots_dir)
-  - Saves hist/bar/missingness PNGs to plots_dir; returns /static URLs
+  - Saves histogram/bar/missingness PNGs to plots_dir; returns /static URLs
 - generate_basic_plots_storage(storage, job_id, df)
-  - Stores PNGs via storage adapter; returns signed/served URLs
+  - Stores PNGs via the storage adapter; returns signed/served URLs
 
 Notes
 - All functions are defensive; EDA is designed to be fast and resilient.

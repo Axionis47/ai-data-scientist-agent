@@ -5,5 +5,7 @@
 - app/platform/statemachine.py
   - Validates and records stage transitions; computes durations_ms and stage_starts
 - app/platform/queue_runner.py
-  - Local thread-based queue with concurrency cap; used by API to run jobs
+  - Local thread-based queue with concurrency cap; used by the API to run jobs
 
+Tip
+- In local development, these defaults are fine. Later, you can swap for cloud equivalents.

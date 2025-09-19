@@ -1,10 +1,10 @@
 # Backend Architecture
 
-This backend implements an AI Data Scientist agent that ingests a dataset, performs fast EDA, optionally trains a simple ML model with explainability, and generates an HTML report. The system is designed for robustness and observability.
+The backend powers an AI Data Scientist agent. It takes a dataset, does quick EDA, optionally trains a simple ML model with explainability, and then creates an HTML report. It is designed to be robust and easy to observe in local setups.
 
 ## High-level flow
 1. Upload via /upload → creates a job directory under data/jobs/{job_id}/original and returns identifiers
-2. Analyze via /analyze → enqueues a background run of the pipeline for that job
+2. Analyse via /analyze → enqueues a background run of the pipeline for that job
 3. Pipeline stages → ingest → eda → clarify (if needed) → modeling → report → qa → done
 4. Result → /result/{job_id} returns result.json including report_html
 
@@ -21,7 +21,7 @@ This backend implements an AI Data Scientist agent that ingests a dataset, perfo
 - app/core/schemas.py: lightweight validators for EDA/modeling/report JSON
 - app/core/telemetry.py: append per-run telemetry.jsonl for analysis
 
-## Files & directories
+## Files and directories
 - data/jobs/{job_id}
   - original/ … uploaded file
   - manifest.json, manifest.done
@@ -37,7 +37,7 @@ This backend implements an AI Data Scientist agent that ingests a dataset, perfo
 - Background execution uses LocalThreadQueue via QueueRunner with MAX_CONCURRENT_JOBS
 - Stage timeouts (EDA/MODEL/REPORT) are enforced if configured
 - Cancellation: POST /cancel/{job_id} sets a flag; pipeline checks at heavy boundaries
-- Resumability: artifacts + .done markers allow deterministic skip on restart
+- Resumability: artefacts + .done markers allow deterministic skip on restart
 - State machine: transitions recorded in job.timeline with timestamps
 - Heartbeat: heartbeat_ts field updated during run
 
@@ -64,21 +64,22 @@ This backend implements an AI Data Scientist agent that ingests a dataset, perfo
 - Telemetry: per-run JSONL with durations_ms, status, timings, selected_tools, features, warnings
 - Timings: result.json includes timings.stage_starts; job.durations_ms aggregates stage durations
 
-## Security & safety
+## Security and safety
 - Static guard blocks access to original/ by default
 - Upload type enforcement; dataset path validation
 - Defensive exception handling with short messages instead of silent failures
 
 ## Testing
-- pytest suite (~13 tests) covers API flow, clarify gating, EDA basics, modeling logs, router fallback, security
+- pytest suite covers API flow, clarify gating, EDA basics, modeling logs, router fallback, security
 
 ## Extensibility
 - Job Store/Queue are abstracted; can be replaced with Firestore/PubSub
 - Reporting supports JSON-first generation and deterministic fallback
 - Auto-actions (SAFE_AUTO_ACTIONS) allow conservative automated tweaks
 
-
-
+## For beginners
+- Start with a small CSV and just call /upload and /analyze.
+- If something fails, check backend/data/jobs/{job_id}/telemetry.jsonl for hints.
 
 ## Architecture diagram
 
