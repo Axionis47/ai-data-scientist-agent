@@ -8,16 +8,16 @@
   - Interacts with: /upload, /analyze, /status, /result endpoints
 
 - components/Upload.tsx
-  - Purpose: File selection / drag-drop; POST to /upload
+  - Purpose: File selection and drag-drop; POST to /upload
 
 - components/AnalyzeButton.tsx
-  - Purpose: Trigger /analyze with selected job
+  - Purpose: Trigger /analyze with the selected job
 
 - components/Results.tsx
   - Purpose: Poll /status; fetch /result and render report_html
 
 - lib/api.ts
-  - Purpose: Small wrapper for fetch calls to backend API; uses NEXT_PUBLIC_API_URL
+  - Purpose: Small wrapper for fetch calls to the backend API; uses NEXT_PUBLIC_API_URL
 
 Note: File names may vary depending on the current Next.js app folder structure; adjust accordingly.
 
