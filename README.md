@@ -48,9 +48,5 @@ Note: If you do not have a key, the app will fall back to a non-OpenAI path for 
 ## Frontend (optional)
 - A small Next.js app lives in frontend/ (landing page and results)
 
-## Commit messages
-- Please write commit messages like how you would explain the change to a teammate. A short, normal sentence is fine.
-- See COMMIT_MESSAGE_GUIDE.md for simple examples.
-
 ## License
 MIT
