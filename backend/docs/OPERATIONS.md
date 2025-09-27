@@ -9,6 +9,8 @@
 - Concurrency and timeouts
   - MAX_CONCURRENT_JOBS: default 1
   - EDA_TIMEOUT_S / MODEL_TIMEOUT_S / REPORT_TIMEOUT_S: default 0 (disabled)
+- Logging
+  - LOG_LEVEL: DEBUG/INFO/WARN/ERROR (default INFO)
 - Reporting
   - REPORT_JSON_FIRST: false by default; when true, try JSON-first reporting (OpenAI key required)
   - Brand tokens: REPORT_PRIMARY/ACCENT/BG/SURFACE/TEXT/MUTED/OK/WARN/ERROR/FONT_FAMILY/LOGO_URL
@@ -59,3 +61,23 @@
   - test_api_flow.py::test_api_upload_analyze_clarify_and_result
   - test_clarify_and_resume.py::test_clarify_gating_and_resume
   - test_modeling_explain_logs.py::test_modeling_explain_and_logs
+
+
+## Structured JSON logs
+- All backend logs emit single-line JSON to stdout/stderr.
+- Fields: ts, level, logger, message, job_id (when available), stage (derived from logger or provided), duration_ms (optional), exc (optional).
+- Primary loggers: ai-ds-eda (stage=eda), ai-ds-model (stage=modeling)
+- Per-job decision trails: data/jobs/{job_id}/logs/{eda_decisions.log,model_decisions.log}
+
+Example line:
+```
+{"ts":"2025-09-27T12:34:56","level":"INFO","logger":"ai-ds-model","message":"[<job>] Starting modeling via modular pipeline","job_id":"<job>","stage":"modeling"}
+```
+
+Quick filters with jq:
+- Only modeling: docker logs <container> | jq 'select(.stage=="modeling")'
+- One job: ... | jq 'select(.job_id=="<job>")'
+
+## Result payload contract (API)
+- /result/{job_id} validates best-effort against app/core/models.ResultPayload.
+- Expected keys: eda, modeling, explain, qa; optional: router_plan, fairness, reproducibility, report_html, timings.

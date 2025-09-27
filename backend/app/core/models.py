@@ -39,4 +39,8 @@ class ResultPayload(BaseModel):
     modeling: Dict[str, Any]
     explain: Dict[str, Any]
     qa: Dict[str, Any]
+    router_plan: Optional[Dict[str, Any]] = None
+    fairness: Optional[Dict[str, Any]] = None
+    reproducibility: Optional[Dict[str, Any]] = None
+    report_html: Optional[str] = None
     timings: Optional[Dict[str, Any]] = None

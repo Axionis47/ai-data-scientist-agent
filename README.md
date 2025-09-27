@@ -6,6 +6,22 @@ This project is an AI Data Scientist agent. You give it a dataset and a question
 
 If you are new to AI agents: no stress. Start the backend, use the API to upload a CSV/Excel file, and then ask the agent to analyse it. The defaults are conservative.
 
+## One click run (both frontend + backend)
+- If you have Docker: just run `docker compose up --build`
+  - Frontend: http://localhost:3000
+  - Backend health: http://localhost:8000/health
+- Or use Makefile shortcuts:
+  - `make up` to start, `make logs` to watch, `make down` to stop
+
+## What we improved recently (simple words)
+- CI is strict now: lint, type check, security and tests must pass.
+- Frontend also builds and type-checks in CI.
+- Dependabot and CodeQL keep deps and security in check.
+- Logs are structured JSON with job_id and stage. Easy to filter in tools.
+- You can control log level with `LOG_LEVEL` env (DEBUG/INFO/WARN/ERROR).
+- Result JSON has a clear shape; API checks it for safety.
+- You can run everything with one command using Docker Compose.
+
 ## Quick start (backend)
 
 - cd backend

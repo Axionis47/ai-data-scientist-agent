@@ -46,7 +46,8 @@ def deterministic_checks(
 
         # Category density & cardinality
         nunique = eda.get("nunique") or {}
-        rows = int((eda.get("shape") or [0, 0])[0] or 0)
+        shape = eda.get("shape") or {}
+        rows = int((shape.get("rows") or 0))
         high_card_cols = [
             c
             for c, n in nunique.items()
