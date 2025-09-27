@@ -20,7 +20,8 @@ export default function NewAnalysis(){
   const [question, setQuestion] = useState('Classify which passengers survived. target=Survived')
   const [fileFormat, setFileFormat] = useState<string|undefined>(undefined)
   const [plan, setPlan] = useState<string>('')
-  
+  const [profile, setProfile] = useState<'lean'|'full'>('full')
+
   const canNext = useMemo(()=>{
     if(active==='data') return Boolean(uploaded?.dataset_path || datasetPath)
     if(active==='context') return context.length>10
@@ -42,7 +43,7 @@ export default function NewAnalysis(){
   },[active, datasetPath, uploaded])
 
   const start = async () => {
-    const body = { dataset_path: datasetPath || uploaded?.dataset_path, nl_description: context, question, file_format: fileFormat }
+    const body = { dataset_path: datasetPath || uploaded?.dataset_path, nl_description: context, question, file_format: fileFormat, profile }
     const r = await fetch(`${API}/analyze`, {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)})
     const j = await r.json();
     const jobs = JSON.parse(localStorage.getItem('jobs')||'[]'); jobs.unshift(j.job_id); localStorage.setItem('jobs', JSON.stringify(jobs.slice(0,20)))
@@ -100,6 +101,15 @@ export default function NewAnalysis(){
                 <button className="btn secondary" onClick={()=>setQuestion('What are the key drivers of survival?')}>Descriptive</button>
               </div>
             </div>
+            <div className="card">
+              <h3>Profile</h3>
+              <label className="label">Choose between lean (fast, minimal extras) and full (richer analysis) <span title="Lean: faster, skips fairness and TS/text FE. Full: richer artifacts." style={{marginLeft:6, color:'#9ca3af', cursor:'help'}}>?</span></label>
+              <div className="row" style={{gap:8}}>
+                <button className={"btn " + (profile==='lean'?'':'secondary')} onClick={()=>setProfile('full')}>Full</button>
+                <button className={"btn " + (profile==='lean'?'secondary':'')} onClick={()=>setProfile('lean')}>Lean</button>
+              </div>
+            </div>
+
           </div>
         </section>
       )}
@@ -108,7 +118,7 @@ export default function NewAnalysis(){
         <section id="panel-review" style={{marginTop:16}}>
           <div className="grid">
             <div className="card"><h3>Review Plan</h3><p style={{color:'#9ca3af'}}>A concise blueprint derived from your inputs.</p><pre>{plan}</pre></div>
-            <div className="card"><h3>Inputs</h3><pre>{JSON.stringify({dataset_path: datasetPath || uploaded?.dataset_path, context, question}, null, 2)}</pre></div>
+            <div className="card"><h3>Inputs</h3><pre>{JSON.stringify({dataset_path: datasetPath || uploaded?.dataset_path, context, question, profile}, null, 2)}</pre></div>
           </div>
         </section>
       )}

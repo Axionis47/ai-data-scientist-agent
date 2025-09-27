@@ -18,6 +18,9 @@ MODEL_TIMEOUT_S = int(os.getenv("MODEL_TIMEOUT_S", "0"))
 REPORT_TIMEOUT_S = int(os.getenv("REPORT_TIMEOUT_S", "0"))
 MAX_CONCURRENT_JOBS = int(os.getenv("MAX_CONCURRENT_JOBS", "1"))
 
+# Logging level (INFO by default). Accepts DEBUG/INFO/WARN/ERROR
+LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO").upper()
+
 # Env-tunable modeling flags
 BLEND_DELTA = float(os.getenv("BLEND_DELTA", "0.02"))
 EARLY_STOP_SAMPLE = int(os.getenv("EARLY_STOP_SAMPLE", "10000"))
@@ -74,3 +77,8 @@ REPORT_INLINE_ASSETS = os.getenv("REPORT_INLINE_ASSETS", "false").lower() in (
     "true",
     "yes",
 )
+# Iteration loop controls (disabled by default)
+LOOP_MAX_ROUNDS = int(os.getenv("LOOP_MAX_ROUNDS", "0"))
+LOOP_MIN_DELTA = float(os.getenv("LOOP_MIN_DELTA", "0.005"))
+LOOP_TIME_BUDGET_S = int(os.getenv("LOOP_TIME_BUDGET_S", "0"))
+

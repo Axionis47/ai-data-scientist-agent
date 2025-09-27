@@ -31,7 +31,16 @@ except Exception:
     OpenAI = None  # type: ignore
 
 # --- Logging moved to core.logs ---
-from .core.logs import log, eda_logger, model_logger, eda_decision, model_decision
+from .core.logs import (
+    log,
+    eda_logger,
+    model_logger,
+    eda_decision,
+    model_decision,
+    setup_json_logging,
+)
+# Initialize JSON structured logging once
+setup_json_logging()
 
 # --- Config moved to core.config ---
 from .core.config import (
@@ -144,6 +153,7 @@ class AnalyzeRequest(BaseModel):
     question: str = Field(..., description="User question / task")
     sheet_name: Optional[str] = None
     delimiter: Optional[str] = None
+    profile: Optional[str] = Field(default=None, description="Run profile: 'lean' or 'full'")
 
 
 class StatusResponse(BaseModel):
@@ -324,6 +334,7 @@ def analyze(body: AnalyzeRequest):
         "file_format": body.file_format,
         "sheet_name": body.sheet_name,
         "delimiter": body.delimiter,
+        "profile": (body.profile or None),
         "created_at": job.get("created_at"),
         "updated_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -581,6 +592,12 @@ def result(job_id: str):
 
     try:
         data = json.loads(p.read_text())
+        # Optional validation at API boundary (non-fatal)
+        try:
+            from .core.models import ResultPayload
+            _ = ResultPayload(**data)
+        except Exception:
+            pass
         return JSONResponse(content=_json_safe(data))
     except Exception as e:
         raise HTTPException(500, detail=f"failed to load result: {e}")

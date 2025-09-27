@@ -8,6 +8,9 @@ on:
 jobs:
   lint-type-test:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ['3.10', '3.11', '3.12']
     defaults:
       run:
         working-directory: backend
@@ -15,7 +18,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
+          python-version: ${{ matrix.python }}
           cache: 'pip'
       - name: Install dependencies (editable)
         run: |
@@ -26,20 +29,20 @@ jobs:
         run: |
           pip install ruff
           ruff --version
-          ruff check app tests || true
+          ruff check app tests
       - name: Format check (black)
         run: |
           pip install black
           black --version
-          black --check app tests || true
+          black --check app tests
       - name: Type check (mypy)
         run: |
           pip install mypy
-          mypy app || true
+          mypy app
       - name: Security (bandit)
         run: |
           pip install bandit
-          bandit -r app -x tests || true
+          bandit -r app -x tests
       - name: Tests (pytest with coverage)
         working-directory: .
         env:
@@ -47,12 +50,32 @@ jobs:
           SHAP_ENABLED: "false"
         run: |
           pip install pytest pytest-cov
-          pytest -q backend/tests --maxfail=1 --disable-warnings --cov=backend/app --cov-report=xml:backend/coverage.xml
+          pytest -q backend/tests --maxfail=1 --disable-warnings --cov=backend/app --cov-report=xml:backend/coverage.xml --cov-fail-under=70
       - name: Upload coverage to Codecov
+        if: ${{ matrix.python == '3.12' }}
         uses: codecov/codecov-action@v4
         with:
           files: backend/coverage.xml
           fail_ci_if_error: false
+
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      - name: Install deps
+        run: npm ci --no-audit
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Build
+        run: npm run build
 
 
 
