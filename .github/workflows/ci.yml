@@ -53,7 +53,7 @@ jobs:
           pytest -q backend/tests --maxfail=1 --disable-warnings --cov=backend/app --cov-report=xml:backend/coverage.xml --cov-fail-under=70
       - name: Upload coverage to Codecov
         if: ${{ matrix.python == '3.12' }}
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v5
         with:
           files: backend/coverage.xml
           fail_ci_if_error: false
