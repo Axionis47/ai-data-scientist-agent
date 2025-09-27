@@ -10,6 +10,9 @@
 
 ## Env
 - To enable LLM-based reporting, pass OPENAI_API_KEY to the backend service in docker-compose.yml
+- To control log noise, set `LOG_LEVEL` (DEBUG/INFO/WARN/ERROR). Example:
+  - In repo-root `.env`: `LOG_LEVEL=DEBUG`
+  - `docker compose up --build` will pick it up automatically
 
 ## Data persistence
 - backend/data is volume-mounted into the backend container at /app/data so jobs persist between restarts.
