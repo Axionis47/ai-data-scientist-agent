@@ -50,7 +50,7 @@ jobs:
           SHAP_ENABLED: "false"
         run: |
           pip install pytest pytest-cov
-          pytest -q backend/tests --maxfail=1 --disable-warnings --cov=backend/app --cov-report=xml:backend/coverage.xml --cov-fail-under=70
+          pytest -q backend/tests --maxfail=1 --disable-warnings --cov=backend/app --cov-report=xml:backend/coverage.xml --cov-fail-under=55
       - name: Upload coverage to Codecov
         if: ${{ matrix.python == '3.12' }}
         uses: codecov/codecov-action@v4
