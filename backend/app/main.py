@@ -619,7 +619,7 @@ def clarify(body: ClarifyRequest):
 def run():
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)  # nosec B104 - intentional for Docker
 
 
 if __name__ == "__main__":
