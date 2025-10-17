@@ -42,7 +42,7 @@ jobs:
       - name: Security (bandit)
         run: |
           pip install bandit
-          bandit -r app -x tests
+          bandit -r app -x tests -ll
       - name: Tests (pytest with coverage)
         working-directory: .
         env:
