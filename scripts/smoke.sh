@@ -59,12 +59,16 @@ say "Starting sample job"
 JOB_JSON=""
 for i in 1 2 3 4 5; do
   JOB_JSON=$(curl -s -S -m 10 -H 'Accept: application/json' -X POST "$API/sample" || true)
+  echo "[smoke] DEBUG: JOB_JSON length=${#JOB_JSON}" >&2
+  echo "[smoke] DEBUG: JOB_JSON content='$JOB_JSON'" >&2
   JOB_ID=$(python3 - <<'PY'
 import sys, json
 try:
     s=sys.stdin.read().strip()
     print(json.loads(s).get("job_id",""))
-except Exception:
+except Exception as e:
+    import sys
+    print(f"DEBUG: Python parse error: {e}", file=sys.stderr)
     print("")
 PY
 <<<"$JOB_JSON")
