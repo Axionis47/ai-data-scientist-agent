@@ -47,6 +47,11 @@ from .core.config import (
 
 # Lazy-import run_modeling within _run_pipeline to avoid import-time dependency failures
 from .eda.eda import (
+    compute_eda,
+    compute_target_relations,
+    compute_timeseries_hints,
+    load_dataframe,
+    load_sampled_chunked_csv,
     infer_format,
     detect_delimiter,
 )
