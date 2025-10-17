@@ -32,6 +32,7 @@ from .core.logs import (
     log,
     setup_json_logging,
 )
+
 # Initialize JSON structured logging once
 setup_json_logging()
 
@@ -119,7 +120,9 @@ class AnalyzeRequest(BaseModel):
     question: str = Field(..., description="User question / task")
     sheet_name: Optional[str] = None
     delimiter: Optional[str] = None
-    profile: Optional[str] = Field(default=None, description="Run profile: 'lean' or 'full'")
+    profile: Optional[str] = Field(
+        default=None, description="Run profile: 'lean' or 'full'"
+    )
 
 
 class StatusResponse(BaseModel):
@@ -409,7 +412,6 @@ def health():
     return {"ok": True}
 
 
-
 @app.get("/openai-smoke")
 def openai_smoke(live: bool = False):
     """Lightweight OpenAI readiness probe.
@@ -418,8 +420,10 @@ def openai_smoke(live: bool = False):
     - live=true: performs a tiny chat completion against gpt-4o-mini to confirm network access.
     """
     import os
+
     try:
         from openai import OpenAI  # type: ignore
+
         sdk_installed = True
     except Exception:
         OpenAI = None  # type: ignore
@@ -428,7 +432,12 @@ def openai_smoke(live: bool = False):
     has_key = bool(os.getenv("OPENAI_API_KEY"))
 
     if not live:
-        return {"ok": bool(sdk_installed and has_key), "sdk_installed": sdk_installed, "has_key": has_key, "live": False}
+        return {
+            "ok": bool(sdk_installed and has_key),
+            "sdk_installed": sdk_installed,
+            "has_key": has_key,
+            "live": False,
+        }
 
     if not sdk_installed:
         return {"ok": False, "error": "sdk_not_installed", "live": True}
@@ -446,7 +455,11 @@ def openai_smoke(live: bool = False):
         txt = (r.choices[0].message.content or "").strip()
         return {"ok": txt.upper().startswith("OK"), "reply": txt, "live": True}
     except Exception as e:  # pragma: no cover
-        return {"ok": False, "error": f"{type(e).__name__}: {str(e)[:200]}", "live": True}
+        return {
+            "ok": False,
+            "error": f"{type(e).__name__}: {str(e)[:200]}",
+            "live": True,
+        }
 
 
 @app.post("/sample")
@@ -540,6 +553,7 @@ def result(job_id: str):
 
     def _json_safe(x):
         import math
+
         try:
             import numpy as np  # type: ignore
         except Exception:  # pragma: no cover
@@ -559,6 +573,7 @@ def result(job_id: str):
         # Optional validation at API boundary (non-fatal)
         try:
             from .core.models import ResultPayload
+
             _ = ResultPayload(**data)
         except Exception:
             pass

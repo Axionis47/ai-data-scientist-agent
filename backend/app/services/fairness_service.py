@@ -15,6 +15,7 @@ Notes
 - For regression: reports mean target per group and range.
 - Skips high-cardinality columns and columns with too many missing/unique groups.
 """
+
 from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
@@ -23,7 +24,9 @@ import pandas.api.types as ptypes
 from pandas.api.types import CategoricalDtype
 
 
-def _eligible_cat_columns(df: pd.DataFrame, target: str, max_card: int = 10) -> List[str]:
+def _eligible_cat_columns(
+    df: pd.DataFrame, target: str, max_card: int = 10
+) -> List[str]:
     cols: List[str] = []
     for c in df.columns:
         if c == target:
@@ -65,24 +68,47 @@ def compute_slice_metrics(
             try:
                 g = df[c].astype(str)
                 grp = pd.DataFrame({"y": y, c: g})
-                stats = grp.groupby(c)["y"].agg(["count"]).rename(columns={"count": "support"})
+                stats = (
+                    grp.groupby(c)["y"]
+                    .agg(["count"])
+                    .rename(columns={"count": "support"})
+                )
                 if is_binary:
                     pos_rate = grp.groupby(c)["y"].apply(lambda s: pd.Series(s).mean())
                     stats["prevalence"] = pos_rate
-                    disparity = float(pos_rate.max() - pos_rate.min()) if len(pos_rate) > 1 else 0.0
+                    disparity = (
+                        float(pos_rate.max() - pos_rate.min())
+                        if len(pos_rate) > 1
+                        else 0.0
+                    )
                 else:
                     # For multiclass, prevalence is undefined; report majority-class share per group
-                    maj_share = grp.groupby(c)["y"].apply(lambda s: pd.Series(s).value_counts(normalize=True).max())
+                    maj_share = grp.groupby(c)["y"].apply(
+                        lambda s: pd.Series(s).value_counts(normalize=True).max()
+                    )
                     stats["majority_share"] = maj_share
-                    disparity = float(maj_share.max() - maj_share.min()) if len(maj_share) > 1 else 0.0
+                    disparity = (
+                        float(maj_share.max() - maj_share.min())
+                        if len(maj_share) > 1
+                        else 0.0
+                    )
                 # Optional performance per group
                 if predictions is not None:
-                    acc = grp.assign(pred=predictions).groupby(c).apply(lambda d: float((d["y"] == d["pred"]).mean()))
+                    acc = (
+                        grp.assign(pred=predictions)
+                        .groupby(c)
+                        .apply(lambda d: float((d["y"] == d["pred"]).mean()))
+                    )
                     stats["acc"] = acc
                 if (predictions is not None) and is_binary:
                     try:
                         from sklearn.metrics import f1_score
-                        f1g = grp.assign(pred=predictions).groupby(c).apply(lambda d: float(f1_score(d["y"], d["pred"])))
+
+                        f1g = (
+                            grp.assign(pred=predictions)
+                            .groupby(c)
+                            .apply(lambda d: float(f1_score(d["y"], d["pred"])))
+                        )
                         stats["f1"] = f1g
                     except Exception:
                         pass
@@ -98,7 +124,11 @@ def compute_slice_metrics(
             try:
                 g = df[c].astype(str)
                 grp = pd.DataFrame({"y": y, c: g})
-                stats = grp.groupby(c)["y"].agg(["count", "mean"]).rename(columns={"count": "support", "mean": "y_mean"})
+                stats = (
+                    grp.groupby(c)["y"]
+                    .agg(["count", "mean"])
+                    .rename(columns={"count": "support", "mean": "y_mean"})
+                )
                 ymean = stats["y_mean"] if "y_mean" in stats else pd.Series([])
                 disparity = float(ymean.max() - ymean.min()) if len(ymean) > 1 else 0.0
                 summaries[c] = {
@@ -109,4 +139,3 @@ def compute_slice_metrics(
                 continue
 
     return {"columns": cols, "summaries": summaries}
-

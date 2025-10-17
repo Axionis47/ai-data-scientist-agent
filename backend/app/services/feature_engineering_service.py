@@ -12,6 +12,7 @@ Design
 - Conservative: no target leakage; derives only from features, not target
 - Fast: avoids heavy scans; can be extended later (target encoding, interactions)
 """
+
 from __future__ import annotations
 from typing import Any, Dict, List, Tuple
 
@@ -20,7 +21,9 @@ import pandas.api.types as ptypes
 
 
 def _detect_datetime_columns(df: pd.DataFrame, eda: Dict[str, Any]) -> List[str]:
-    cands = set(eda.get("time_columns") or []) | set(eda.get("time_like_candidates") or [])
+    cands = set(eda.get("time_columns") or []) | set(
+        eda.get("time_like_candidates") or []
+    )
     cols: List[str] = []
     for c in df.columns:
         if c in cands:
@@ -34,7 +37,9 @@ def _detect_datetime_columns(df: pd.DataFrame, eda: Dict[str, Any]) -> List[str]
     return cols
 
 
-def add_datetime_features(df: pd.DataFrame, eda: Dict[str, Any], manifest: Dict[str, Any]) -> Tuple[pd.DataFrame, Dict[str, Any]]:
+def add_datetime_features(
+    df: pd.DataFrame, eda: Dict[str, Any], manifest: Dict[str, Any]
+) -> Tuple[pd.DataFrame, Dict[str, Any]]:
     if df is None or not isinstance(df, pd.DataFrame):
         return df, {"added": [], "notes": ["no_df"]}
     dcols = _detect_datetime_columns(df, eda)
@@ -51,8 +56,6 @@ def add_datetime_features(df: pd.DataFrame, eda: Dict[str, Any], manifest: Dict[
             continue
     rep = {"added": added, "base": list(dcols)}
     return out, rep
-
-
 
 
 def add_timeseries_features(
@@ -80,7 +83,13 @@ def add_timeseries_features(
 
     decisions = ((manifest or {}).get("router_plan") or {}).get("decisions") or {}
     ts_flag = decisions.get("timeseries_fe")
-    if isinstance(ts_flag, str) and ts_flag.lower() in ("off", "disable", "disabled", "false", "0"):
+    if isinstance(ts_flag, str) and ts_flag.lower() in (
+        "off",
+        "disable",
+        "disabled",
+        "false",
+        "0",
+    ):
         return df, {"added": [], "notes": ["disabled_by_router"]}
     if ts_flag is False:
         return df, {"added": [], "notes": ["disabled_by_router"]}
@@ -118,7 +127,9 @@ def add_timeseries_features(
     if not isinstance(windows, list) or not windows:
         windows = [3]
     # Sanitize windows
-    windows = [int(w) for w in windows if isinstance(w, (int, float)) and int(w) >= 2][:3]
+    windows = [int(w) for w in windows if isinstance(w, (int, float)) and int(w) >= 2][
+        :3
+    ]
     if not windows:
         windows = [3]
 
@@ -129,7 +140,9 @@ def add_timeseries_features(
             added.append(f"{c}_lag1")
             for w in windows:
                 cname = f"{c}_roll{w}_mean"
-                out_sorted[cname] = out_sorted[c].rolling(window=w, min_periods=1).mean().shift(1)
+                out_sorted[cname] = (
+                    out_sorted[c].rolling(window=w, min_periods=1).mean().shift(1)
+                )
                 added.append(cname)
         except Exception:
             continue
@@ -138,7 +151,6 @@ def add_timeseries_features(
     out_final = out_sorted.loc[out.index]
     rep = {"added": added, "time_col": time_col, "base": num_cols, "windows": windows}
     return out_final, rep
-
 
 
 def add_text_features(
@@ -158,11 +170,12 @@ def add_text_features(
 
     # Candidate text columns: object or categorical with modest cardinality
     from pandas.api.types import CategoricalDtype
+
     cand = []
     for c in df.columns:
         try:
             dt = df[c].dtype
-            is_texty = (ptypes.is_object_dtype(dt) or isinstance(dt, CategoricalDtype))
+            is_texty = ptypes.is_object_dtype(dt) or isinstance(dt, CategoricalDtype)
             if is_texty and int(pd.Series(df[c]).nunique(dropna=False)) >= 2:
                 cand.append(c)
         except Exception:
@@ -183,14 +196,16 @@ def add_text_features(
             out[f"{c}_num_space"] = s.str.count(r"\s")
             out[f"{c}_num_punct"] = s.str.count(r"[\.,;:!?\-\(\)\[\]{}'\"]")
             out[f"{c}_num_words"] = s.str.count(r"\b\w+\b")
-            added.extend([
-                f"{c}_len",
-                f"{c}_num_alpha",
-                f"{c}_num_digit",
-                f"{c}_num_space",
-                f"{c}_num_punct",
-                f"{c}_num_words",
-            ])
+            added.extend(
+                [
+                    f"{c}_len",
+                    f"{c}_num_alpha",
+                    f"{c}_num_digit",
+                    f"{c}_num_space",
+                    f"{c}_num_punct",
+                    f"{c}_num_words",
+                ]
+            )
         except Exception:
             continue
 

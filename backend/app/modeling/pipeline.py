@@ -78,12 +78,12 @@ class TopKCategorical:
         return df
 
 
-
 class FittedEnsemble:
     """Simple prediction-time ensemble over already-fitted estimators.
     For binary classification: soft-average predict_proba when available; else majority vote.
     For regression: average predictions.
     """
+
     def __init__(self, members: Dict[str, Any], task: str = "binary"):
         self.members = members
         self.task = task
@@ -102,10 +102,12 @@ class FittedEnsemble:
         if not probs:
             raise AttributeError("No member provides predict_proba")
         import numpy as np
+
         return np.vstack([1 - np.mean(probs, axis=0), np.mean(probs, axis=0)]).T
 
     def predict(self, X):
         import numpy as np
+
         if self.task == "binary":
             # Try soft voting
             if any(hasattr(m, "predict_proba") for m in self.members.values()):
@@ -144,6 +146,7 @@ class StackingEnsemble:
     Binary: meta is LogisticRegression on base predict_proba.
     Regression: meta is LinearRegression on base predictions.
     """
+
     def __init__(self, members: Dict[str, Any], meta: Any, task: str = "binary"):
         self.members = members
         self.meta = meta
@@ -151,6 +154,7 @@ class StackingEnsemble:
 
     def _make_features(self, X):
         import numpy as np
+
         feats = []
         for m in self.members.values():
             if self.task == "binary":
@@ -169,6 +173,7 @@ class StackingEnsemble:
         if self.task != "binary":
             raise AttributeError("predict_proba only for binary task")
         import numpy as np
+
         Z = self._make_features(X)
         if hasattr(self.meta, "predict_proba"):
             p = self.meta.predict_proba(Z)[:, 1]
@@ -176,6 +181,7 @@ class StackingEnsemble:
             # Fallback via decision_function sigmoid
             try:
                 from scipy.special import expit
+
                 p = expit(self.meta.decision_function(Z))
             except Exception:
                 p = self.meta.predict(Z)
@@ -189,6 +195,7 @@ class StackingEnsemble:
                 return (p >= 0.5).astype(int)
             try:
                 from scipy.special import expit
+
                 p = expit(self.meta.decision_function(Z))
                 return (p >= 0.5).astype(int)
             except Exception:
@@ -196,11 +203,13 @@ class StackingEnsemble:
         else:
             return self.meta.predict(Z)
 
-def quick_search(name: str, pipe: Pipeline, X, y, is_class: bool, time_budget: int | None = None) -> Pipeline:
+
+def quick_search(
+    name: str, pipe: Pipeline, X, y, is_class: bool, time_budget: int | None = None
+) -> Pipeline:
     import time
 
     budget = SEARCH_TIME_BUDGET if time_budget is None else int(time_budget)
-
 
     if budget <= 0:
         return pipe
@@ -282,14 +291,16 @@ def run_modeling(
     class_weight = "balanced" if class_weight in ("balanced", "auto") else None
     # Split strategy (prefer time-based if requested or time columns exist)
     split_pref = str(decisions.get("split") or "").lower()
-    time_cols = (eda.get("time_columns") or eda.get("time_like_candidates") or [])
+    time_cols = eda.get("time_columns") or eda.get("time_like_candidates") or []
     time_col = next((c for c in time_cols if c in df.columns), None)
     use_time_split = (split_pref == "time") or bool(time_col)
     try:
-        model_decision(job_id, f"Applied router decisions: metric={desired_metric or 'default'}, budget={decisions.get('budget')}, class_weight={'balanced' if class_weight else 'none'}, split={'time' if use_time_split else 'random'}")
+        model_decision(
+            job_id,
+            f"Applied router decisions: metric={desired_metric or 'default'}, budget={decisions.get('budget')}, class_weight={'balanced' if class_weight else 'none'}, split={'time' if use_time_split else 'random'}",
+        )
     except Exception:
         pass
-
 
     # Preprocess
     # Determine task type early for preprocessing decisions
@@ -298,7 +309,11 @@ def run_modeling(
 
     # Split categorical columns by cardinality (use EDA nunique if available)
     try:
-        from ..services.encoding_service import split_categorical_by_cardinality, TargetMeanEncoder
+        from ..services.encoding_service import (
+            split_categorical_by_cardinality,
+            TargetMeanEncoder,
+        )
+
         cat_low, cat_high = split_categorical_by_cardinality(eda or {}, cat_cols)
     except Exception:
         cat_low, cat_high = cat_cols, []
@@ -311,23 +326,36 @@ def run_modeling(
             ("ohe", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
         ]
     )
-    transformers = [("num", SimpleImputer(strategy="median"), num_cols), ("cat_low", cat_low_pipe, cat_low)]
+    transformers = [
+        ("num", SimpleImputer(strategy="median"), num_cols),
+        ("cat_low", cat_low_pipe, cat_low),
+    ]
     # Add target encoding branch only for binary classification or regression
     if is_binary or ptypes.is_numeric_dtype(y):
         try:
-            te_pipe = Pipeline(steps=[("impute", SimpleImputer(strategy="most_frequent")), ("te", TargetMeanEncoder(cols=cat_high, smoothing=10.0, oof_folds=5))])
+            te_pipe = Pipeline(
+                steps=[
+                    ("impute", SimpleImputer(strategy="most_frequent")),
+                    (
+                        "te",
+                        TargetMeanEncoder(cols=cat_high, smoothing=10.0, oof_folds=5),
+                    ),
+                ]
+            )
             transformers.append(("cat_high_te", te_pipe, cat_high))
         except Exception:
             pass
     pre = ColumnTransformer(transformers, remainder="drop")
-
 
     # Feature selection for linear
     use_mi = False
     try:
         Xs = X.head(min(1000, len(X)))
         from ..services.encoding_service import split_categorical_by_cardinality
-        cat_low_prev, cat_high_prev = split_categorical_by_cardinality(eda or {}, cat_cols)
+
+        cat_low_prev, cat_high_prev = split_categorical_by_cardinality(
+            eda or {}, cat_cols
+        )
         pre_preview = ColumnTransformer(
             [
                 ("num", SimpleImputer(strategy="median"), num_cols),
@@ -384,7 +412,12 @@ def run_modeling(
                 Pipeline(
                     [("prep", pre)]
                     + linear_sel_steps
-                    + [("est", LogisticRegression(max_iter=200, class_weight=class_weight))]
+                    + [
+                        (
+                            "est",
+                            LogisticRegression(max_iter=200, class_weight=class_weight),
+                        )
+                    ]
                 ),
             ),
             (
@@ -392,7 +425,12 @@ def run_modeling(
                 Pipeline(
                     [
                         ("prep", pre),
-                        ("est", RandomForestClassifier(n_estimators=200, n_jobs=-1, class_weight=class_weight)),
+                        (
+                            "est",
+                            RandomForestClassifier(
+                                n_estimators=200, n_jobs=-1, class_weight=class_weight
+                            ),
+                        ),
                     ]
                 ),
             ),
@@ -470,7 +508,9 @@ def run_modeling(
             ytr, yte = ys.iloc[:split_idx], ys.iloc[split_idx:]
             model_decision(job_id, f"Time-based split on '{time_col}' (80/20)")
         except Exception as e:
-            model_decision(job_id, f"Time-based split failed ({e}); falling back to random")
+            model_decision(
+                job_id, f"Time-based split failed ({e}); falling back to random"
+            )
             strat = y if is_class else None
             Xtr, Xte, ytr, yte = train_test_split(
                 X, y, test_size=0.2, random_state=42, stratify=strat
@@ -495,16 +535,21 @@ def run_modeling(
     if use_time_split:
         try:
             from sklearn.model_selection import TimeSeriesSplit
+
             eff_folds = min(CV_FOLDS, max(2, len(Xtr) // 5)) if len(Xtr) >= 10 else 2
             cv_iter = TimeSeriesSplit(n_splits=eff_folds).split(Xtr)
-            model_decision(job_id, f"Using TimeSeriesSplit CV with n_splits={eff_folds}")
+            model_decision(
+                job_id, f"Using TimeSeriesSplit CV with n_splits={eff_folds}"
+            )
         except Exception:
             # Fallback to simple K-fold style matching task type
             if is_class:
                 try:
                     counts = ytr.value_counts()
                     min_class = int(counts.min()) if len(counts) else 0
-                    eff_folds = max(2, min(CV_FOLDS, min_class)) if min_class >= 2 else 2
+                    eff_folds = (
+                        max(2, min(CV_FOLDS, min_class)) if min_class >= 2 else 2
+                    )
                 except Exception:
                     eff_folds = min(CV_FOLDS, 3)
                 try:
@@ -514,7 +559,9 @@ def run_modeling(
                 except Exception:
                     cv_iter = eff_folds
             else:
-                eff_folds = min(CV_FOLDS, max(2, len(Xtr) // 5)) if len(Xtr) >= 10 else 2
+                eff_folds = (
+                    min(CV_FOLDS, max(2, len(Xtr) // 5)) if len(Xtr) >= 10 else 2
+                )
                 cv_iter = eff_folds
     else:
         if is_class:
@@ -589,7 +636,11 @@ def run_modeling(
                 pipe.fit(Xtr.iloc[tr_idx], ytr.iloc[tr_idx])
                 preds_cv = pipe.predict(Xtr.iloc[va_idx])
                 if is_class:
-                    s = accuracy_score(ytr.iloc[va_idx], preds_cv) if scoring_str == "accuracy" else f1_score(ytr.iloc[va_idx], preds_cv)
+                    s = (
+                        accuracy_score(ytr.iloc[va_idx], preds_cv)
+                        if scoring_str == "accuracy"
+                        else f1_score(ytr.iloc[va_idx], preds_cv)
+                    )
                 else:
                     s = r2_score(ytr.iloc[va_idx], preds_cv)
                 scores.append(s)
@@ -666,7 +717,6 @@ def run_modeling(
             "Applied complexity penalty to tree/boosting candidates (n_rows<500)",
         )
 
-
     # Simple ensemble over top-K candidates (soft voting for binary; averaging for regression)
 
     # Stacking (meta-learner) over top-K candidates using OOF predictions
@@ -676,49 +726,83 @@ def run_modeling(
             # Determine top models as before
             if is_class:
                 if is_binary and desired_metric in ("roc_auc", "auc", "rocauc"):
+
                     def key_fn(m):
                         return m.get("roc_auc") or 0.0
+
                     reverse = True
-                elif is_binary and desired_metric in ("pr_auc", "ap", "average_precision"):
+                elif is_binary and desired_metric in (
+                    "pr_auc",
+                    "ap",
+                    "average_precision",
+                ):
+
                     def key_fn(m):
                         return m.get("pr_auc") or 0.0
+
                     reverse = True
                 elif desired_metric in ("accuracy", "acc"):
+
                     def key_fn(m):
                         return m.get("acc") or 0.0
+
                     reverse = True
                 else:
+
                     def key_fn(m):
                         return m.get("f1") or 0.0
+
                     reverse = True
             else:
                 if desired_metric == "rmse":
+
                     def key_fn(m):
-                        return m.get("rmse") if m.get("rmse") is not None else float("inf")
+                        return (
+                            m.get("rmse") if m.get("rmse") is not None else float("inf")
+                        )
+
                     reverse = False
                 else:
+
                     def key_fn(m):
                         return m.get("r2") or -1.0
+
                     reverse = True
             lb_sorted = sorted(leaderboard, key=key_fn, reverse=reverse)
-            top_names = [m.get("name") for m in lb_sorted[:K] if m.get("name") in fitted and m.get("name") != "ensemble"]
+            top_names = [
+                m.get("name")
+                for m in lb_sorted[:K]
+                if m.get("name") in fitted and m.get("name") != "ensemble"
+            ]
             if len(top_names) >= 2:
                 import numpy as np
                 from sklearn.base import clone
+
                 # Build OOF predictions matrix for training meta
                 Z = np.zeros((len(Xtr), len(top_names)), dtype=float)
                 if use_time_split:
                     from sklearn.model_selection import TimeSeriesSplit
+
                     splitter = TimeSeriesSplit(n_splits=max(2, min(CV_FOLDS, 5)))
                     splits = splitter.split(Xtr)
                 else:
                     if is_class:
                         from sklearn.model_selection import StratifiedKFold
-                        splitter = StratifiedKFold(n_splits=max(2, min(CV_FOLDS, 5)), shuffle=True, random_state=42)
+
+                        splitter = StratifiedKFold(
+                            n_splits=max(2, min(CV_FOLDS, 5)),
+                            shuffle=True,
+                            random_state=42,
+                        )
                         splits = splitter.split(Xtr, ytr)
                     else:
                         from sklearn.model_selection import KFold
-                        splitter = KFold(n_splits=max(2, min(CV_FOLDS, 5)), shuffle=True, random_state=42)
+
+                        splitter = KFold(
+                            n_splits=max(2, min(CV_FOLDS, 5)),
+                            shuffle=True,
+                            random_state=42,
+                        )
                         splits = splitter.split(Xtr)
                 for tr_idx, va_idx in splits:
                     Xtr_i, Xva_i = Xtr.iloc[tr_idx], Xtr.iloc[va_idx]
@@ -750,7 +834,9 @@ def run_modeling(
                             p = proba_map.get(n)
                             if p is None and hasattr(fitted[n], "predict_proba"):
                                 p = fitted[n].predict_proba(Xte)[:, 1]
-                            Z_test.append(p if p is not None else fitted[n].predict(Xte))
+                            Z_test.append(
+                                p if p is not None else fitted[n].predict(Xte)
+                            )
                         else:
                             Z_test.append(fitted[n].predict(Xte))
                     except Exception:
@@ -763,6 +849,7 @@ def run_modeling(
                     except Exception:
                         try:
                             from scipy.special import expit
+
                             p_meta = expit(meta.decision_function(Z_test))
                         except Exception:
                             p_meta = meta.predict(Z_test)
@@ -771,7 +858,9 @@ def run_modeling(
                     entry = {
                         "name": "stacking",
                         "f1": float(metrics.get("f1") or f1_score(yte, preds_meta)),
-                        "acc": float(metrics.get("acc") or accuracy_score(yte, preds_meta)),
+                        "acc": float(
+                            metrics.get("acc") or accuracy_score(yte, preds_meta)
+                        ),
                         "cv_mean": None,
                         "cv_std": None,
                     }
@@ -780,7 +869,9 @@ def run_modeling(
                     if "pr_auc" in metrics:
                         entry["pr_auc"] = float(metrics["pr_auc"])
                     leaderboard.append(entry)
-                    fitted["stacking"] = StackingEnsemble({n: fitted[n] for n in top_names}, meta, task="binary")
+                    fitted["stacking"] = StackingEnsemble(
+                        {n: fitted[n] for n in top_names}, meta, task="binary"
+                    )
                 elif not is_class:
                     preds_meta = meta.predict(Z_test)
                     r2 = r2_score(yte, preds_meta)
@@ -788,8 +879,18 @@ def run_modeling(
                         rmse = root_mean_squared_error(yte, preds_meta)
                     except Exception:
                         rmse = float(pd.Series(yte - preds_meta).pow(2).mean() ** 0.5)
-                    leaderboard.append({"name": "stacking", "r2": float(r2), "rmse": float(rmse), "cv_mean": None, "cv_std": None})
-                    fitted["stacking"] = StackingEnsemble({n: fitted[n] for n in top_names}, meta, task="regression")
+                    leaderboard.append(
+                        {
+                            "name": "stacking",
+                            "r2": float(r2),
+                            "rmse": float(rmse),
+                            "cv_mean": None,
+                            "cv_std": None,
+                        }
+                    )
+                    fitted["stacking"] = StackingEnsemble(
+                        {n: fitted[n] for n in top_names}, meta, task="regression"
+                    )
     except Exception:
         pass
 
@@ -799,32 +900,52 @@ def run_modeling(
             # Choose sort key based on desired metric
             if is_class:
                 if is_binary and desired_metric in ("roc_auc", "auc", "rocauc"):
+
                     def key_fn(m):
                         return m.get("roc_auc") or 0.0
+
                     reverse = True
-                elif is_binary and desired_metric in ("pr_auc", "ap", "average_precision"):
+                elif is_binary and desired_metric in (
+                    "pr_auc",
+                    "ap",
+                    "average_precision",
+                ):
+
                     def key_fn(m):
                         return m.get("pr_auc") or 0.0
+
                     reverse = True
                 elif desired_metric in ("accuracy", "acc"):
+
                     def key_fn(m):
                         return m.get("acc") or 0.0
+
                     reverse = True
                 else:
+
                     def key_fn(m):
                         return m.get("f1") or 0.0
+
                     reverse = True
             else:
                 if desired_metric == "rmse":
+
                     def key_fn(m):
-                        return m.get("rmse") if m.get("rmse") is not None else float("inf")
+                        return (
+                            m.get("rmse") if m.get("rmse") is not None else float("inf")
+                        )
+
                     reverse = False
                 else:
+
                     def key_fn(m):
                         return m.get("r2") or -1.0
+
                     reverse = True
             lb_sorted = sorted(leaderboard, key=key_fn, reverse=reverse)
-            top_names = [m.get("name") for m in lb_sorted[:K] if m.get("name") in fitted]
+            top_names = [
+                m.get("name") for m in lb_sorted[:K] if m.get("name") in fitted
+            ]
             if is_class and is_binary:
                 # Soft average probabilities when available
                 probas = []
@@ -843,13 +964,16 @@ def run_modeling(
                         used.append(n)
                 if len(probas) >= 2:
                     import numpy as np
+
                     proba_ens = np.mean(np.vstack(probas), axis=0)
                     preds_ens = (proba_ens >= 0.5).astype(int)
                     metrics = compute_binary_metrics(yte, proba_ens, preds_ens)
                     entry = {
                         "name": "ensemble",
                         "f1": float(metrics.get("f1") or f1_score(yte, preds_ens)),
-                        "acc": float(metrics.get("acc") or accuracy_score(yte, preds_ens)),
+                        "acc": float(
+                            metrics.get("acc") or accuracy_score(yte, preds_ens)
+                        ),
                         "cv_mean": None,
                         "cv_std": None,
                     }
@@ -859,7 +983,9 @@ def run_modeling(
                         entry["pr_auc"] = float(metrics["pr_auc"])
                     leaderboard.append(entry)
                     # Register fitted ensemble for downstream explain/predict
-                    fitted["ensemble"] = FittedEnsemble({n: fitted[n] for n in used}, task="binary")
+                    fitted["ensemble"] = FittedEnsemble(
+                        {n: fitted[n] for n in used}, task="binary"
+                    )
                     proba_map["ensemble"] = proba_ens
             elif not is_class:
                 preds_list = []
@@ -872,14 +998,25 @@ def run_modeling(
                         pass
                 if len(preds_list) >= 2:
                     import numpy as np
+
                     preds_ens = np.mean(np.vstack(preds_list), axis=0)
                     r2 = r2_score(yte, preds_ens)
                     try:
                         rmse = root_mean_squared_error(yte, preds_ens)
                     except Exception:
                         rmse = float(pd.Series(yte - preds_ens).pow(2).mean() ** 0.5)
-                    leaderboard.append({"name": "ensemble", "r2": float(r2), "rmse": float(rmse), "cv_mean": None, "cv_std": None})
-                    fitted["ensemble"] = FittedEnsemble({n: fitted[n] for n in used}, task="regression")
+                    leaderboard.append(
+                        {
+                            "name": "ensemble",
+                            "r2": float(r2),
+                            "rmse": float(rmse),
+                            "cv_mean": None,
+                            "cv_std": None,
+                        }
+                    )
+                    fitted["ensemble"] = FittedEnsemble(
+                        {n: fitted[n] for n in used}, task="regression"
+                    )
     except Exception:
         pass
 
@@ -895,14 +1032,22 @@ def run_modeling(
             leaderboard.sort(key=lambda m: (m.get("f1") or 0.0), reverse=True)
     else:
         if desired_metric == "rmse":
-            leaderboard.sort(key=lambda m: (m.get("rmse") if m.get("rmse") is not None else float("inf")))
+            leaderboard.sort(
+                key=lambda m: (
+                    m.get("rmse") if m.get("rmse") is not None else float("inf")
+                )
+            )
         else:
             leaderboard.sort(key=lambda m: (m.get("r2") or -1.0), reverse=True)
     best = leaderboard[0] if leaderboard else None
 
     # Optional probability calibration for classifiers when requested by router and enabled
     try:
-        calibrate_req = bool(decisions.get("calibration") or framing.get("calibrate")) if is_class else False
+        calibrate_req = (
+            bool(decisions.get("calibration") or framing.get("calibrate"))
+            if is_class
+            else False
+        )
     except Exception:
         calibrate_req = False
     if is_class and CALIBRATE_ENABLED and calibrate_req and best is not None:
@@ -911,12 +1056,18 @@ def run_modeling(
             chosen = fitted.get(chosen_name)
             # Skip calibration for ensemble wrapper
             if chosen_name in ("ensemble", "stacking"):
-                model_decision(job_id, "Calibration skipped for ensemble/stacking model")
+                model_decision(
+                    job_id, "Calibration skipped for ensemble/stacking model"
+                )
             elif chosen is not None and hasattr(chosen, "predict_proba"):
                 method = str(decisions.get("calibration_method") or "sigmoid").lower()
                 if method not in ("sigmoid", "isotonic"):
                     method = "sigmoid"
-                calib = CalibratedClassifierCV(base_estimator=chosen, cv=min(3, max(2, int(eff_folds))), method=method)
+                calib = CalibratedClassifierCV(
+                    base_estimator=chosen,
+                    cv=min(3, max(2, int(eff_folds))),
+                    method=method,
+                )
                 calib.fit(Xtr, ytr)
                 fitted[chosen_name] = calib
                 preds = calib.predict(Xte)
@@ -927,7 +1078,9 @@ def run_modeling(
                         proba = None
                     metrics = compute_binary_metrics(yte, proba, preds)
                     best["f1"] = float(metrics.get("f1") or f1_score(yte, preds))
-                    best["acc"] = float(metrics.get("acc") or accuracy_score(yte, preds))
+                    best["acc"] = float(
+                        metrics.get("acc") or accuracy_score(yte, preds)
+                    )
                     if "roc_auc" in metrics:
                         best["roc_auc"] = float(metrics["roc_auc"])
                     if "pr_auc" in metrics:
@@ -935,9 +1088,14 @@ def run_modeling(
                 else:
                     best["f1"] = float(f1_score(yte, preds, average="weighted"))
                     best["acc"] = float(accuracy_score(yte, preds))
-                model_decision(job_id, f"Applied probability calibration (method={method}) to {chosen_name}")
+                model_decision(
+                    job_id,
+                    f"Applied probability calibration (method={method}) to {chosen_name}",
+                )
             else:
-                model_decision(job_id, "Calibration skipped: chosen model lacks predict_proba")
+                model_decision(
+                    job_id, "Calibration skipped: chosen model lacks predict_proba"
+                )
         except Exception as e:
             model_decision(job_id, f"Calibration failed: {e}")
 
@@ -993,22 +1151,35 @@ def run_modeling(
                     proba = chosen.predict_proba(Xte)[:, 1]
                 except Exception:
                     proba = None
+
             def _to_py(v):
                 try:
                     import numpy as _np
+
                     if isinstance(v, _np.generic):
                         return v.item()
                 except Exception:
                     pass
                 return v
-            idx_list = [ _to_py(i) for i in Xte.index.tolist() ]
+
+            idx_list = [_to_py(i) for i in Xte.index.tolist()]
             result["pred_test"] = {
                 "index": idx_list,
-                "y_true": [ _to_py(v) for v in yte.tolist() ],
-                "y_pred": [ _to_py(v) for v in (y_pred.tolist() if hasattr(y_pred, "tolist") else list(y_pred)) ],
+                "y_true": [_to_py(v) for v in yte.tolist()],
+                "y_pred": [
+                    _to_py(v)
+                    for v in (
+                        y_pred.tolist() if hasattr(y_pred, "tolist") else list(y_pred)
+                    )
+                ],
             }
             if proba is not None:
-                result["pred_test"]["proba"] = [ _to_py(v) for v in (proba.tolist() if hasattr(proba, "tolist") else list(proba)) ]
+                result["pred_test"]["proba"] = [
+                    _to_py(v)
+                    for v in (
+                        proba.tolist() if hasattr(proba, "tolist") else list(proba)
+                    )
+                ]
     except Exception:
         pass
 
