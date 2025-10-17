@@ -33,7 +33,9 @@ def _file_fingerprint(path: Path, max_bytes: int = 2 * 1024 * 1024) -> Dict[str,
                 "suffix": path.suffix,
             }
         )
-        h = hashlib.sha1()
+        h = hashlib.sha1(
+            usedforsecurity=False
+        )  # nosec B324 - used for fingerprinting, not security
         with path.open("rb") as f:
             remaining = max_bytes
             while remaining > 0:
