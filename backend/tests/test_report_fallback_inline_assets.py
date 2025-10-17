@@ -1,5 +1,3 @@
-import os
-import json
 from pathlib import Path
 from app.reporting.report import _fallback_report_html
 

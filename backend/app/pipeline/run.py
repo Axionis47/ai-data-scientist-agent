@@ -718,7 +718,7 @@ def run_pipeline(
                     except Exception as e:
                         model_decision(job_id, f"Loop re-run failed: {e}")
                 else:
-                    model_decision(job_id, f"Loop planned but no re-run (no impactful decision changes)")
+                    model_decision(job_id, "Loop planned but no re-run (no impactful decision changes)")
             except Exception as e:
                 model_decision(job_id, f"Loop planning failed: {e}")
     except Exception:

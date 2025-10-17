@@ -31,8 +31,8 @@ try:
 except Exception:  # pragma: no cover - optional dependency for CI
     OpenAI = None  # type: ignore
 
-from ..core.config import REPORT_INLINE_ASSETS
-import base64, pathlib
+import base64
+import pathlib
 from contextlib import contextmanager
 
 try:
@@ -128,7 +128,7 @@ from ..core.schemas import validate_report_json
 
 def _render_from_json(job_id: str, j: dict) -> str:
     # Minimal deterministic HTML from a validated JSON report object
-    title = j.get("title") or f"Job {job_id} Report"
+    j.get("title") or f"Job {job_id} Report"
     kpi_html = "".join(
         [
             f"<div class='card'><div class='h1'>{k}</div><div class='kpi'>{v}</div></div>"

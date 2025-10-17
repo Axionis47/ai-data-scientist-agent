@@ -30,3 +30,8 @@ allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
+
+[tool.ruff.lint]
+# Ignore E402 (module level import not at top of file) - intentional for lazy loading
+# Ignore E701/E702 (multiple statements on one line) - test code style
+extend-ignore = ["E402", "E701", "E702"]

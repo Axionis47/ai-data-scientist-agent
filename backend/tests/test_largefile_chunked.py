@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 import io
 from pathlib import Path
-from app.main import app, LARGE_FILE_MB
+from app.main import app
 
 
 def test_large_file_chunked_missingness(tmp_path: Path, monkeypatch):

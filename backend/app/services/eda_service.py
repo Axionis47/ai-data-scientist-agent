@@ -3,7 +3,6 @@
 Stable entry points for EDA-related operations. These delegate to app.eda.eda
 so the pipeline can depend on this boundary instead of concrete modules.
 """
-from typing import Any, Dict, Optional
 from pathlib import Path
 
 from ..eda import eda as _eda

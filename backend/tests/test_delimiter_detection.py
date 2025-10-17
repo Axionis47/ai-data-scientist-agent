@@ -1,4 +1,3 @@
-from pathlib import Path
 from app.eda.eda import detect_delimiter
 
 def test_detect_delimiter_semicolon():

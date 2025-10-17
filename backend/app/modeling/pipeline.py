@@ -27,7 +27,6 @@ from sklearn.metrics import (
     f1_score,
     r2_score,
     root_mean_squared_error,
-    precision_recall_curve,
 )
 from sklearn.model_selection import StratifiedKFold, cross_val_score, RandomizedSearchCV
 from sklearn.inspection import permutation_importance
@@ -53,7 +52,7 @@ from ..core.config import (
     SEARCH_TIME_BUDGET,
     CALIBRATE_ENABLED,
 )
-from ..services.evaluation_service import compute_binary_metrics, choose_threshold
+from ..services.evaluation_service import compute_binary_metrics
 
 
 # Minimal TopK encoder (copied from main to avoid deep deps)
@@ -183,7 +182,6 @@ class StackingEnsemble:
         return np.vstack([1 - p, p]).T
 
     def predict(self, X):
-        import numpy as np
         Z = self._make_features(X)
         if self.task == "binary":
             if hasattr(self.meta, "predict_proba"):
@@ -294,6 +292,10 @@ def run_modeling(
 
 
     # Preprocess
+    # Determine task type early for preprocessing decisions
+    is_class = (not ptypes.is_numeric_dtype(y)) or (y.nunique(dropna=True) <= 10)
+    is_binary = bool(pd.Series(y).nunique(dropna=True) == 2)
+
     # Split categorical columns by cardinality (use EDA nunique if available)
     try:
         from ..services.encoding_service import split_categorical_by_cardinality, TargetMeanEncoder
@@ -318,9 +320,6 @@ def run_modeling(
         except Exception:
             pass
     pre = ColumnTransformer(transformers, remainder="drop")
-
-    is_class = (not ptypes.is_numeric_dtype(y)) or (y.nunique(dropna=True) <= 10)
-    is_binary = bool(pd.Series(y).nunique(dropna=True) == 2)
 
 
     # Feature selection for linear
@@ -351,7 +350,7 @@ def run_modeling(
             ],
             remainder="drop",
         )
-        Xt = pre_preview.fit_transform(Xs)
+        pre_preview.fit_transform(Xs)
         # OHE features for low-card + numeric feature count known; add one per high-card col
         try:
             ohe = getattr(pre_preview, "transformers_", [])[1][1].named_steps["ohe"]
@@ -677,23 +676,29 @@ def run_modeling(
             # Determine top models as before
             if is_class:
                 if is_binary and desired_metric in ("roc_auc", "auc", "rocauc"):
-                    key_fn = lambda m: (m.get("roc_auc") or 0.0)
+                    def key_fn(m):
+                        return m.get("roc_auc") or 0.0
                     reverse = True
                 elif is_binary and desired_metric in ("pr_auc", "ap", "average_precision"):
-                    key_fn = lambda m: (m.get("pr_auc") or 0.0)
+                    def key_fn(m):
+                        return m.get("pr_auc") or 0.0
                     reverse = True
                 elif desired_metric in ("accuracy", "acc"):
-                    key_fn = lambda m: (m.get("acc") or 0.0)
+                    def key_fn(m):
+                        return m.get("acc") or 0.0
                     reverse = True
                 else:
-                    key_fn = lambda m: (m.get("f1") or 0.0)
+                    def key_fn(m):
+                        return m.get("f1") or 0.0
                     reverse = True
             else:
                 if desired_metric == "rmse":
-                    key_fn = lambda m: (m.get("rmse") if m.get("rmse") is not None else float("inf"))
+                    def key_fn(m):
+                        return m.get("rmse") if m.get("rmse") is not None else float("inf")
                     reverse = False
                 else:
-                    key_fn = lambda m: (m.get("r2") or -1.0)
+                    def key_fn(m):
+                        return m.get("r2") or -1.0
                     reverse = True
             lb_sorted = sorted(leaderboard, key=key_fn, reverse=reverse)
             top_names = [m.get("name") for m in lb_sorted[:K] if m.get("name") in fitted and m.get("name") != "ensemble"]
@@ -794,23 +799,29 @@ def run_modeling(
             # Choose sort key based on desired metric
             if is_class:
                 if is_binary and desired_metric in ("roc_auc", "auc", "rocauc"):
-                    key_fn = lambda m: (m.get("roc_auc") or 0.0)
+                    def key_fn(m):
+                        return m.get("roc_auc") or 0.0
                     reverse = True
                 elif is_binary and desired_metric in ("pr_auc", "ap", "average_precision"):
-                    key_fn = lambda m: (m.get("pr_auc") or 0.0)
+                    def key_fn(m):
+                        return m.get("pr_auc") or 0.0
                     reverse = True
                 elif desired_metric in ("accuracy", "acc"):
-                    key_fn = lambda m: (m.get("acc") or 0.0)
+                    def key_fn(m):
+                        return m.get("acc") or 0.0
                     reverse = True
                 else:
-                    key_fn = lambda m: (m.get("f1") or 0.0)
+                    def key_fn(m):
+                        return m.get("f1") or 0.0
                     reverse = True
             else:
                 if desired_metric == "rmse":
-                    key_fn = lambda m: (m.get("rmse") if m.get("rmse") is not None else float("inf"))
+                    def key_fn(m):
+                        return m.get("rmse") if m.get("rmse") is not None else float("inf")
                     reverse = False
                 else:
-                    key_fn = lambda m: (m.get("r2") or -1.0)
+                    def key_fn(m):
+                        return m.get("r2") or -1.0
                     reverse = True
             lb_sorted = sorted(leaderboard, key=key_fn, reverse=reverse)
             top_names = [m.get("name") for m in lb_sorted[:K] if m.get("name") in fitted]

@@ -1,7 +1,6 @@
 import json
 import re
 from typing import Dict, Any
-from pathlib import Path
 from .config import JOBS_DIR
 
 _target_re = re.compile(r"target\s*=\s*([A-Za-z0-9_\-]+)", re.IGNORECASE)

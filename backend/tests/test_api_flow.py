@@ -1,11 +1,10 @@
-import json
 from pathlib import Path
 import io
 
 import pandas as pd
 from fastapi.testclient import TestClient
 
-from app.main import app, JOBS_DIR
+from app.main import app
 
 
 def test_api_upload_analyze_clarify_and_result(tmp_path: Path):
