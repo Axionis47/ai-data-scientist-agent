@@ -1,0 +1,20 @@
+[MASTER]
+ignore=CVS,.git,__pycache__,venv,env
+
+[MESSAGES CONTROL]
+disable=C0111,  # missing-docstring
+        C0103,  # invalid-name
+        R0903,  # too-few-public-methods
+        R0913,  # too-many-arguments
+        W0212   # protected-access
+
+[FORMAT]
+max-line-length=120
+indent-string='    '
+
+[DESIGN]
+max-args=7
+max-locals=20
+max-returns=6
+max-branches=15
+max-statements=60
