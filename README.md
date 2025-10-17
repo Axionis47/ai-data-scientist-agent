@@ -61,8 +61,5 @@ Note: If you do not have a key, the app will fall back to a non-OpenAI path for 
 - Adapters are scaffolded for Storage (Local/GCS), JobStore (Memory/Firestore), JobQueue (Local/PubSub)
 - Local development remains unchanged; a future PR will wire adapters behind environment flags
 
-## Frontend (optional)
+## Frontend
 - A small Next.js app lives in frontend/ (landing page and results)
-
-## License
-MIT
