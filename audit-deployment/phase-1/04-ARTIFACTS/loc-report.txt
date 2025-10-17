@@ -1,0 +1,9 @@
+Lines of Code Analysis
+======================
+
+Total Lines of Code: 4860
+
+Lines per directory:
+  botds/: 4774
+  cli/: 86
+  tests/: 534

@@ -1,0 +1,19 @@
+{
+  "timestamp": "2025-10-17T00:13:35Z",
+  "duration_seconds": 5,
+  "coverage": {
+    "percent": "21.12",
+    "total_statements": "1596",
+    "covered_statements": "337",
+    "missing_statements": "1259"
+  },
+  "tests": {
+    "total": 17,
+    "passed": 0
+0,
+    "failed": 0
+0,
+    "skipped": 17
+  },
+  "test_duration": ""
+}

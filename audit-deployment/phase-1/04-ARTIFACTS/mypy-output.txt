@@ -1,0 +1,15 @@
+You must install the lxml package before you can run mypy with `--html-report`.
+You can do this with `python3 -m pip install lxml`.
+Traceback (most recent call last):
+  File "/Users/sid47/venvs/PP_Analysis/bin/mypy", line 7, in <module>
+    sys.exit(console_entry())
+             ^^^^^^^^^^^^^^^
+  File "/Users/sid47/venvs/PP_Analysis/lib/python3.12/site-packages/mypy/__main__.py", line 15, in console_entry
+    main()
+  File "mypy/main.py", line 103, in main
+  File "mypy/main.py", line 187, in run_build
+  File "mypy/build.py", line 193, in build
+  File "mypy/build.py", line 233, in _build
+  File "mypy/report.py", line 60, in __init__
+  File "mypy/report.py", line 77, in add_report
+ImportError

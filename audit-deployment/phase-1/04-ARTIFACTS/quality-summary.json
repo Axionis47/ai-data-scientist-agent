@@ -1,0 +1,12 @@
+{
+  "timestamp": "2025-10-17T00:12:39Z",
+  "duration_seconds": 19,
+  "metrics": {
+    "total_loc": 4860,
+    "test_loc": 534,
+    "pylint_score": "5.63/10",
+    "flake8_issues": 0,
+    "black_compliant": true,
+    "isort_compliant": true
+  }
+}
