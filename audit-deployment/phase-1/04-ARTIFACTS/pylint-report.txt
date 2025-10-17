@@ -1,0 +1,831 @@
+************* Module botds.config
+botds/config.py:107:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/config.py:110:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/config.py:93:4: E0213: Method 'validate_data_config' should have "self" as first argument (no-self-argument)
+botds/config.py:108:13: W1514: Using open without explicitly specifying an encoding (unspecified-encoding)
+botds/config.py:5:0: W0611: Unused Optional imported from typing (unused-import)
+************* Module botds.cache
+botds/cache.py:12:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:17:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:23:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:27:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:31:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:47:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:56:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:59:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:63:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:68:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:70:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:82:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:88:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:92:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:98:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:101:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:105:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:111:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:120:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:131:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:134:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:137:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:146:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:152:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:165:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:167:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:175:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:177:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:181:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/cache.py:116:15: W0718: Catching too general exception Exception (broad-exception-caught)
+botds/cache.py:3:0: W0611: Unused import json (unused-import)
+************* Module botds.llm
+botds/llm.py:15:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:19:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:27:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:30:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:35:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:43:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:63:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:69:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:85:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:89:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:101:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:112:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:121:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:123:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:126:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:135:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:146:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:152:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:157:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:160:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/llm.py:41:15: W0718: Catching too general exception Exception (broad-exception-caught)
+botds/llm.py:125:12: W0707: Consider explicitly re-raising using 'raise RuntimeError(f'OpenAI decision failed: {str(e)}') from e' (raise-missing-from)
+botds/llm.py:158:15: W0718: Catching too general exception Exception (broad-exception-caught)
+botds/llm.py:153:12: R1705: Unnecessary "else" after "return", remove the "else" and de-indent the code inside it (no-else-return)
+************* Module botds.context
+botds/context.py:12:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:16:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:34:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:38:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:43:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:54:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:62:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:66:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:70:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:74:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:85:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:93:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:98:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:118:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:120:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:124:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:129:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:140:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:151:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:155:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:159:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:163:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:167:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:171:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:175:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:179:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:193:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/context.py:17:4: R0917: Too many positional arguments (6/5) (too-many-positional-arguments)
+botds/context.py:36:13: W1514: Using open without explicitly specifying an encoding (unspecified-encoding)
+botds/context.py:45:13: W1514: Using open without explicitly specifying an encoding (unspecified-encoding)
+botds/context.py:99:4: R0917: Too many positional arguments (7/5) (too-many-positional-arguments)
+botds/context.py:122:13: W1514: Using open without explicitly specifying an encoding (unspecified-encoding)
+botds/context.py:131:13: W1514: Using open without explicitly specifying an encoding (unspecified-encoding)
+botds/context.py:138:0: R0902: Too many instance attributes (9/7) (too-many-instance-attributes)
+************* Module botds.utils
+botds/utils.py:45:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/utils.py:74:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/utils.py:77:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/utils.py:91:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/utils.py:120:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/utils.py:125:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/utils.py:129:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/utils.py:132:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/utils.py:137:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/utils.py:75:9: W1514: Using open without explicitly specifying an encoding (unspecified-encoding)
+botds/utils.py:83:9: W1514: Using open without explicitly specifying an encoding (unspecified-encoding)
+botds/utils.py:103:4: C0415: Import outside toplevel (psutil) (import-outside-toplevel)
+botds/utils.py:110:4: R1705: Unnecessary "elif" after "return", remove the leading "el" from "elif" (no-else-return)
+botds/utils.py:9:0: W0611: Unused Dict imported from typing (unused-import)
+botds/utils.py:9:0: W0611: Unused List imported from typing (unused-import)
+************* Module botds.pipeline
+botds/pipeline.py:17:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:21:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:26:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:32:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:35:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:38:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:42:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:63:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:68:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:71:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:74:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:77:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:80:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:83:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:86:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:89:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:92:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:95:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:102:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:111:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:116:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:120:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:123:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:127:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:133:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:135:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:143:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:146:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:153:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:163:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:169:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:177:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:181:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:184:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:192:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:205:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:214:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:217:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:224:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:230:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:234:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:239:0: C0301: Line too long (135/120) (line-too-long)
+botds/pipeline.py:241:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:253:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:259:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:265:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:270:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:277:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:287:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:294:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:307:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:316:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:323:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:328:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:344:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:359:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:362:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:374:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:380:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:387:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:392:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:414:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:421:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:434:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:443:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:449:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:454:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:471:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:483:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:489:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:496:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:506:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/pipeline.py:11:0: W0401: Wildcard import tools (wildcard-import)
+botds/pipeline.py:15:0: R0902: Too many instance attributes (13/7) (too-many-instance-attributes)
+botds/pipeline.py:103:15: W0718: Catching too general exception Exception (broad-exception-caught)
+botds/pipeline.py:93:18: W1309: Using an f-string that does not have any interpolated variables (f-string-without-interpolation)
+botds/pipeline.py:232:8: C0415: Import outside toplevel (utils.load_json) (import-outside-toplevel)
+botds/pipeline.py:228:8: W0612: Unused variable 'intake_output' (unused-variable)
+botds/pipeline.py:357:19: W0718: Catching too general exception Exception (broad-exception-caught)
+botds/pipeline.py:3:0: W0611: Unused import json (unused-import)
+botds/pipeline.py:5:0: W0611: Unused List imported from typing (unused-import)
+botds/pipeline.py:5:0: W0611: Unused Optional imported from typing (unused-import)
+botds/pipeline.py:9:0: W0611: Unused DataCard imported from context (unused-import)
+botds/pipeline.py:12:0: W0611: Unused get_timestamp imported from utils (unused-import)
+************* Module botds.tools.metrics
+botds/tools/metrics.py:18:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:21:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:45:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:49:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:52:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:54:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:63:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:73:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:81:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:85:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:87:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:110:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:114:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:121:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:127:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:129:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:134:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:142:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:154:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:157:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:159:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:177:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:185:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:189:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:201:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:203:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:210:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/metrics.py:71:23: W0718: Catching too general exception Exception (broad-exception-caught)
+botds/tools/metrics.py:88:4: R0917: Too many positional arguments (6/5) (too-many-positional-arguments)
+botds/tools/metrics.py:125:19: W0718: Catching too general exception Exception (broad-exception-caught)
+botds/tools/metrics.py:4:0: W0611: Unused Tuple imported from typing (unused-import)
+************* Module botds.tools.budget
+botds/tools/budget.py:12:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:19:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:24:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:44:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:58:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:60:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:64:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:73:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:82:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:91:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:97:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:109:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:114:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:116:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:129:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:133:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:137:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:139:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:147:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:155:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:163:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:165:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/budget.py:10:0: R0902: Too many instance attributes (8/7) (too-many-instance-attributes)
+botds/tools/budget.py:138:16: E1136: Value 'latest_checkpoint' is unsubscriptable (unsubscriptable-object)
+botds/tools/budget.py:130:32: W0613: Unused argument 'remaining_stages' (unused-argument)
+botds/tools/budget.py:5:0: W0611: Unused Optional imported from typing (unused-import)
+************* Module botds.tools.data_io
+botds/tools/data_io.py:14:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:18:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:35:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:42:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:49:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:52:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:57:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:65:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:78:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:84:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:87:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:93:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:98:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:104:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:109:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/data_io.py:31:30: E1101: Instance of 'tuple' has no 'data' member (no-member)
+botds/tools/data_io.py:31:49: E1101: Instance of 'tuple' has no 'feature_names' member (no-member)
+botds/tools/data_io.py:32:27: E1101: Instance of 'tuple' has no 'target' member (no-member)
+botds/tools/data_io.py:38:30: E1101: Instance of 'tuple' has no 'data' member (no-member)
+botds/tools/data_io.py:38:49: E1101: Instance of 'tuple' has no 'feature_names' member (no-member)
+botds/tools/data_io.py:39:27: E1101: Instance of 'tuple' has no 'target' member (no-member)
+botds/tools/data_io.py:45:30: E1101: Instance of 'tuple' has no 'data' member (no-member)
+botds/tools/data_io.py:45:49: E1101: Instance of 'tuple' has no 'feature_names' member (no-member)
+botds/tools/data_io.py:46:27: E1101: Instance of 'tuple' has no 'target' member (no-member)
+botds/tools/data_io.py:107:8: C0415: Import outside toplevel (utils.load_pickle) (import-outside-toplevel)
+botds/tools/data_io.py:4:0: W0611: Unused Optional imported from typing (unused-import)
+botds/tools/data_io.py:4:0: W0611: Unused Tuple imported from typing (unused-import)
+************* Module botds.tools.features
+botds/tools/features.py:16:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:21:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:46:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:49:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:52:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:56:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:59:24: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:64:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:73:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:78:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:82:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:85:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:106:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:113:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:117:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:123:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:170:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:177:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:197:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:200:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:207:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:216:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:219:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:225:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:233:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:236:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:245:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:249:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:255:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:274:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:278:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:281:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:286:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:290:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:293:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:301:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:309:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:315:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:320:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:324:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:334:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:337:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:340:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:342:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/features.py:22:4: R0917: Too many positional arguments (7/5) (too-many-positional-arguments)
+botds/tools/features.py:22:4: R0914: Too many local variables (24/20) (too-many-locals)
+botds/tools/features.py:256:4: R0914: Too many local variables (33/20) (too-many-locals)
+botds/tools/features.py:273:8: C0415: Import outside toplevel (utils.load_json) (import-outside-toplevel)
+botds/tools/features.py:303:59: W0640: Cell variable le defined in loop (cell-var-from-loop)
+botds/tools/features.py:303:30: W0640: Cell variable le defined in loop (cell-var-from-loop)
+botds/tools/features.py:4:0: W0611: Unused Tuple imported from typing (unused-import)
+botds/tools/features.py:7:0: W0611: Unused pandas imported as pd (unused-import)
+************* Module botds.tools.plotter
+botds/tools/plotter.py:16:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:21:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:26:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:50:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:57:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:64:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:67:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:70:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:74:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:83:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:88:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:94:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:118:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:125:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:132:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:137:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:142:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:145:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:150:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:155:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:165:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:170:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:176:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:200:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:207:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:214:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:217:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:223:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:227:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:232:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:237:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:241:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:244:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:248:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:254:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:259:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:265:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:271:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:296:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:301:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:307:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:312:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:314:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:320:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:325:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/plotter.py:72:8: C0415: Import outside toplevel (sklearn.metrics.average_precision_score) (import-outside-toplevel)
+botds/tools/plotter.py:95:4: R0914: Too many local variables (22/20) (too-many-locals)
+botds/tools/plotter.py:177:4: R0914: Too many local variables (27/20) (too-many-locals)
+botds/tools/plotter.py:309:12: C0104: Disallowed name "bar" (disallowed-name)
+botds/tools/plotter.py:4:0: W0611: Unused Tuple imported from typing (unused-import)
+botds/tools/plotter.py:8:0: W0611: Unused pandas imported as pd (unused-import)
+botds/tools/plotter.py:9:0: W0611: Unused roc_curve imported from sklearn.metrics (unused-import)
+************* Module botds.tools.artifacts
+botds/tools/artifacts.py:12:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:18:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:38:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:45:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:50:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:57:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:64:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:71:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:107:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:111:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:129:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:140:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:146:0: C0301: Line too long (122/120) (line-too-long)
+botds/tools/artifacts.py:159:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:163:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:166:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:170:23: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:180:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:184:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:186:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:205:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:209:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:222:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:225:0: C0301: Line too long (155/120) (line-too-long)
+botds/tools/artifacts.py:226:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:242:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:246:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:253:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:255:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:284:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:300:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:305:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:310:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:314:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:318:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:321:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:325:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:382:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:385:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:397:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:403:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/artifacts.py:23:8: W0622: Redefining built-in 'format' (redefined-builtin)
+botds/tools/artifacts.py:48:13: W1514: Using open without explicitly specifying an encoding (unspecified-encoding)
+botds/tools/artifacts.py:60:8: R1705: Unnecessary "else" after "return", remove the "else" and de-indent the code inside it (no-else-return)
+botds/tools/artifacts.py:67:8: R1705: Unnecessary "else" after "return", remove the "else" and de-indent the code inside it (no-else-return)
+botds/tools/artifacts.py:112:16: C0209: Formatting a regular string which could be an f-string (consider-using-f-string)
+botds/tools/artifacts.py:313:8: C0415: Import outside toplevel (shutil) (import-outside-toplevel)
+botds/tools/artifacts.py:386:4: R0917: Too many positional arguments (7/5) (too-many-positional-arguments)
+botds/tools/artifacts.py:4:0: W0611: Unused Optional imported from typing (unused-import)
+************* Module botds.tools.eval
+botds/tools/eval.py:16:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:21:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:45:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:53:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:57:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:62:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:66:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:70:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:74:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:88:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:94:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:99:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:104:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:106:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:145:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:148:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:172:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:175:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:178:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:187:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:189:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:193:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:198:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:201:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:216:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:218:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:220:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:223:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:228:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:232:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:236:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:244:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:248:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:252:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:271:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:277:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:316:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:319:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:343:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:346:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:356:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:361:0: C0301: Line too long (123/120) (line-too-long)
+botds/tools/eval.py:363:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:366:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:372:0: C0301: Line too long (123/120) (line-too-long)
+botds/tools/eval.py:374:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:378:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:383:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:397:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:400:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:408:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:416:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:424:0: C0301: Line too long (132/120) (line-too-long)
+botds/tools/eval.py:427:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:449:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:452:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:459:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:461:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:469:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:478:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:490:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:499:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:508:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:520:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:524:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:535:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:546:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/eval.py:149:4: R0914: Too many local variables (23/20) (too-many-locals)
+botds/tools/eval.py:204:20: C0415: Import outside toplevel (sklearn.metrics.accuracy_score, sklearn.metrics.f1_score) (import-outside-toplevel)
+botds/tools/eval.py:211:20: C0415: Import outside toplevel (sklearn.metrics.mean_absolute_error) (import-outside-toplevel)
+botds/tools/eval.py:239:16: W0612: Unused variable 'slice_name' (unused-variable)
+botds/tools/eval.py:320:4: R0914: Too many local variables (27/20) (too-many-locals)
+botds/tools/eval.py:349:12: C0415: Import outside toplevel (sklearn.metrics.accuracy_score) (import-outside-toplevel)
+botds/tools/eval.py:353:12: C0415: Import outside toplevel (sklearn.metrics.mean_absolute_error) (import-outside-toplevel)
+botds/tools/eval.py:423:46: R1728: Consider using a generator instead 'max((r['performance_drop'] for r in ablation_results), default=0)' (consider-using-generator)
+botds/tools/eval.py:428:4: R0914: Too many local variables (27/20) (too-many-locals)
+botds/tools/eval.py:454:12: C0415: Import outside toplevel (sklearn.metrics.accuracy_score) (import-outside-toplevel)
+botds/tools/eval.py:457:12: C0415: Import outside toplevel (sklearn.metrics.mean_absolute_error) (import-outside-toplevel)
+botds/tools/eval.py:484:15: W0718: Catching too general exception Exception (broad-exception-caught)
+botds/tools/eval.py:514:23: W0718: Catching too general exception Exception (broad-exception-caught)
+botds/tools/eval.py:428:4: R0912: Too many branches (17/15) (too-many-branches)
+botds/tools/eval.py:4:0: W0611: Unused Optional imported from typing (unused-import)
+botds/tools/eval.py:4:0: W0611: Unused Tuple imported from typing (unused-import)
+************* Module botds.tools.modeling
+botds/tools/modeling.py:18:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:23:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:50:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:53:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:58:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:61:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:65:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:70:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:79:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:84:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:95:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:102:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:106:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:113:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:115:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:162:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:165:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:187:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:201:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:204:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:207:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:215:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:218:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:225:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:233:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:237:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:241:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:243:82: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:251:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:256:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:261:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:269:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/modeling.py:24:4: R0917: Too many positional arguments (6/5) (too-many-positional-arguments)
+botds/tools/modeling.py:85:8: R1705: Unnecessary "elif" after "return", remove the leading "el" from "elif" (no-else-return)
+botds/tools/modeling.py:98:8: R1705: Unnecessary "else" after "return", remove the "else" and de-indent the code inside it (no-else-return)
+botds/tools/modeling.py:166:4: R0914: Too many local variables (23/20) (too-many-locals)
+botds/tools/modeling.py:222:12: C0415: Import outside toplevel (sklearn.linear_model.Ridge) (import-outside-toplevel)
+botds/tools/modeling.py:227:12: E0606: Possibly using variable 'base_model' before assignment (possibly-used-before-assignment)
+botds/tools/modeling.py:171:8: W0613: Unused argument 'budget_minutes' (unused-argument)
+botds/tools/modeling.py:5:0: W0611: Unused Optional imported from typing (unused-import)
+botds/tools/modeling.py:5:0: W0611: Unused Tuple imported from typing (unused-import)
+************* Module botds.tools.profiling
+botds/tools/profiling.py:14:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:19:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:31:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:42:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:50:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:55:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:61:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:66:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:79:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:96:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:98:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:102:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:114:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:122:0: C0301: Line too long (131/120) (line-too-long)
+botds/tools/profiling.py:140:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:143:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:164:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:171:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:174:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:197:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:205:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:218:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:238:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:246:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:257:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/profiling.py:195:27: W0718: Catching too general exception Exception (broad-exception-caught)
+botds/tools/profiling.py:232:23: W0718: Catching too general exception Exception (broad-exception-caught)
+botds/tools/profiling.py:144:4: R0912: Too many branches (18/15) (too-many-branches)
+************* Module botds.tools.pii
+botds/tools/pii.py:14:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:19:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:29:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:47:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:50:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:54:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:57:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:62:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:66:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:69:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:79:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:87:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:90:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:100:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:108:65: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:118:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:138:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:142:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:146:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:149:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:154:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:159:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:164:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:168:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:171:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:177:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:191:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:203:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:210:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:212:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:223:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:228:59: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:232:0: C0303: Trailing whitespace (trailing-whitespace)
+botds/tools/pii.py:155:37: W0613: Unused argument 'match' (unused-argument)
+botds/tools/pii.py:173:8: C0415: Import outside toplevel (utils.hash_dataset) (import-outside-toplevel)
+botds/tools/pii.py:5:0: W0611: Unused Tuple imported from typing (unused-import)
+************* Module cli.run
+cli/run.py:25:0: C0303: Trailing whitespace (trailing-whitespace)
+cli/run.py:32:0: C0303: Trailing whitespace (trailing-whitespace)
+cli/run.py:38:0: C0303: Trailing whitespace (trailing-whitespace)
+cli/run.py:40:0: C0303: Trailing whitespace (trailing-whitespace)
+cli/run.py:45:0: C0303: Trailing whitespace (trailing-whitespace)
+cli/run.py:48:0: C0303: Trailing whitespace (trailing-whitespace)
+cli/run.py:52:0: C0303: Trailing whitespace (trailing-whitespace)
+cli/run.py:56:0: C0303: Trailing whitespace (trailing-whitespace)
+cli/run.py:63:0: C0303: Trailing whitespace (trailing-whitespace)
+cli/run.py:69:0: C0303: Trailing whitespace (trailing-whitespace)
+cli/run.py:10:0: C0413: Import "from botds import Config, Pipeline" should be placed at the top of the module (wrong-import-position)
+cli/run.py:76:11: W0718: Catching too general exception Exception (broad-exception-caught)
+cli/run.py:53:8: R1705: Unnecessary "else" after "return", remove the "else" and de-indent the code inside it (no-else-return)
+cli/run.py:54:18: W1309: Using an f-string that does not have any interpolated variables (f-string-without-interpolation)
+cli/run.py:79:12: C0415: Import outside toplevel (traceback) (import-outside-toplevel)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.eval:[285:300]
+==botds.tools.plotter:[391:406]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "model_ref": {
+                                "type": "string",
+                                "description": "Reference to trained model"
+                            },
+                            "X_test_ref": {
+                                "type": "string",
+                                "description": "Reference to test features"
+                            },
+                            "y_test_ref": {
+                                "type": "string",
+                                "description": "Reference to test target"
+                            }, (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.metrics:[248:263]
+==botds.tools.plotter:[362:377]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "model_ref": {
+                                "type": "string",
+                                "description": "Reference to trained model"
+                            },
+                            "X_test_ref": {
+                                "type": "string",
+                                "description": "Reference to test features"
+                            },
+                            "y_test_ref": {
+                                "type": "string",
+                                "description": "Reference to test target"
+                            }, (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.metrics:[218:233]
+==botds.tools.plotter:[333:348]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "model_ref": {
+                                "type": "string",
+                                "description": "Reference to trained model"
+                            },
+                            "X_test_ref": {
+                                "type": "string",
+                                "description": "Reference to test features"
+                            },
+                            "y_test_ref": {
+                                "type": "string",
+                                "description": "Reference to test target"
+                            }, (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.features:[131:142]
+==botds.tools.profiling:[265:276]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "df_ref": {
+                                "type": "string",
+                                "description": "Reference to pickled DataFrame"
+                            },
+                            "target": {
+                                "type": "string",
+                                "description": "Target column name"
+                            }, (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.eval:[589:599]
+==botds.tools.modeling:[142:152]
+                            },
+                            "X_val_ref": {
+                                "type": "string",
+                                "description": "Reference to validation features"
+                            },
+                            "y_val_ref": {
+                                "type": "string",
+                                "description": "Reference to validation target"
+                            }
+                        }, (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.eval:[120:128]
+==botds.tools.modeling:[142:150]
+                            },
+                            "X_val_ref": {
+                                "type": "string",
+                                "description": "Reference to validation features"
+                            },
+                            "y_val_ref": {
+                                "type": "string",
+                                "description": "Reference to validation target" (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.eval:[583:590]
+==botds.tools.plotter:[333:340]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "model_ref": {
+                                "type": "string",
+                                "description": "Reference to trained model"
+                            }, (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.features:[350:357]
+==botds.tools.pii:[265:272]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "df_ref": {
+                                "type": "string",
+                                "description": "Reference to pickled DataFrame"
+                            }, (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.features:[131:138]
+==botds.tools.pii:[240:247]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "df_ref": {
+                                "type": "string",
+                                "description": "Reference to pickled DataFrame"
+                            }, (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.features:[376:383]
+==botds.tools.profiling:[265:272]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "df_ref": {
+                                "type": "string",
+                                "description": "Reference to pickled DataFrame"
+                            }, (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.eval:[554:561]
+==botds.tools.metrics:[248:255]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "model_ref": {
+                                "type": "string",
+                                "description": "Reference to trained model"
+                            }, (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.eval:[114:121]
+==botds.tools.metrics:[218:225]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "model_ref": {
+                                "type": "string",
+                                "description": "Reference to trained model"
+                            }, (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.features:[131:137]
+==botds.tools.pii:[294:300]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "df_ref": {
+                                "type": "string",
+                                "description": "Reference to pickled DataFrame" (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.features:[131:136]
+==botds.tools.profiling:[122:127]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "df_ref": {
+                                "type": "string", (duplicate-code)
+cli/run.py:1:0: R0801: Similar lines in 2 files
+==botds.tools.artifacts:[360:365]
+==botds.tools.data_io:[117:122]
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "name": {
+                                "type": "string", (duplicate-code)
+
+------------------------------------------------------------------
+Your code has been rated at 5.63/10 (previous run: 5.63/10, +0.00)
+

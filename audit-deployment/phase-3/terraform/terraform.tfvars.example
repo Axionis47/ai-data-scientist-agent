@@ -1,0 +1,17 @@
+# Terraform Variables Example
+# Copy this file to terraform.tfvars and fill in your values
+# DO NOT commit terraform.tfvars to Git!
+
+# GCP Project Configuration
+project_id = "your-gcp-project-id"
+region     = "us-central1"
+
+# GitHub Repository (format: "owner/repo")
+github_repo = "your-github-username/your-repo-name"
+
+# OpenAI API Keys (DO NOT commit these values!)
+# These should be different keys for each environment
+openai_api_key_dev     = "sk-your-dev-openai-api-key"
+openai_api_key_staging = "sk-your-staging-openai-api-key"
+openai_api_key_prod    = "sk-your-prod-openai-api-key"
+

@@ -1,0 +1,22 @@
+Files with Coverage < 80%
+============================================================
+File                                               Coverage
+------------------------------------------------------------
+cli/run.py                                            0.00%
+botds/tools/plotter.py                               10.14%
+botds/tools/eval.py                                  10.68%
+botds/tools/pii.py                                   12.94%
+botds/tools/features.py                              13.91%
+botds/tools/budget.py                                14.49%
+botds/pipeline.py                                    15.11%
+botds/tools/profiling.py                             15.48%
+botds/tools/metrics.py                               16.67%
+botds/tools/data_io.py                               20.00%
+botds/tools/artifacts.py                             20.62%
+botds/tools/modeling.py                              21.51%
+botds/llm.py                                         21.82%
+botds/cache.py                                       23.66%
+botds/context.py                                     34.48%
+botds/utils.py                                       35.90%
+
+Total files with low coverage: 16

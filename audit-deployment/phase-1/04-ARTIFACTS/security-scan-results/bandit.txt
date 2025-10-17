@@ -1,0 +1,54 @@
+Run started:2025-10-17 00:12:47.403379
+
+Test results:
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.9/plugins/b110_try_except_pass.html
+   Location: botds/tools/metrics.py:71:16
+70	                        metrics["pr_auc"] = float(average_precision_score(y_test, y_proba))
+71	                except Exception:
+72	                    pass
+73	        
+
+--------------------------------------------------
+>> Issue: [B112:try_except_continue] Try, Except, Continue detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.9/plugins/b112_try_except_continue.html
+   Location: botds/tools/metrics.py:125:12
+124	                bootstrap_scores.append(score)
+125	            except Exception:
+126	                continue
+127	        
+
+--------------------------------------------------
+>> Issue: [B110:try_except_pass] Try, Except, Pass detected.
+   Severity: Low   Confidence: High
+   CWE: CWE-703 (https://cwe.mitre.org/data/definitions/703.html)
+   More Info: https://bandit.readthedocs.io/en/1.7.9/plugins/b110_try_except_pass.html
+   Location: botds/tools/profiling.py:195:20
+194	                            })
+195	                    except Exception:
+196	                        pass
+197	        
+
+--------------------------------------------------
+
+Code scanned:
+	Total lines of code: 3891
+	Total lines skipped (#nosec): 0
+	Total potential issues skipped due to specifically being disabled (e.g., #nosec BXXX): 0
+
+Run metrics:
+	Total issues (by severity):
+		Undefined: 0
+		Low: 3
+		Medium: 0
+		High: 0
+	Total issues (by confidence):
+		Undefined: 0
+		Low: 0
+		Medium: 0
+		High: 3
+Files skipped (0):

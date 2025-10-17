@@ -1,0 +1,114 @@
+ERROR: /Users/sid47/Documents/augment-projects/Data Scientist/botds/cache.py Imports are incorrectly sorted and/or formatted.
+ERROR: /Users/sid47/Documents/augment-projects/Data Scientist/botds/pipeline.py Imports are incorrectly sorted and/or formatted.
+ERROR: /Users/sid47/Documents/augment-projects/Data Scientist/botds/tools/metrics.py Imports are incorrectly sorted and/or formatted.
+ERROR: /Users/sid47/Documents/augment-projects/Data Scientist/botds/tools/__init__.py Imports are incorrectly sorted and/or formatted.
+ERROR: /Users/sid47/Documents/augment-projects/Data Scientist/botds/tools/features.py Imports are incorrectly sorted and/or formatted.
+ERROR: /Users/sid47/Documents/augment-projects/Data Scientist/botds/tools/modeling.py Imports are incorrectly sorted and/or formatted.
+--- /Users/sid47/Documents/augment-projects/Data Scientist/botds/cache.py:before	2025-09-04 19:52:45.833585
++++ /Users/sid47/Documents/augment-projects/Data Scientist/botds/cache.py:after	2025-10-16 20:12:38.356024
+@@ -4,7 +4,14 @@
+ from pathlib import Path
+ from typing import Any, Dict, List, Optional, Set
+ 
+-from .utils import ensure_dir, hash_object, load_json, load_pickle, save_json, save_pickle
++from .utils import (
++    ensure_dir,
++    hash_object,
++    load_json,
++    load_pickle,
++    save_json,
++    save_pickle,
++)
+ 
+ 
+ class CacheIndex:
+--- /Users/sid47/Documents/augment-projects/Data Scientist/botds/pipeline.py:before	2025-09-04 20:22:52.422179
++++ /Users/sid47/Documents/augment-projects/Data Scientist/botds/pipeline.py:after	2025-10-16 20:12:38.361478
+@@ -6,10 +6,10 @@
+ 
+ from .cache import Cache
+ from .config import Config
+-from .context import DecisionLog, DataCard, HandoffLedger, RunManifest
++from .context import DataCard, DecisionLog, HandoffLedger, RunManifest
+ from .llm import LLMRouter
+ from .tools import *
+-from .utils import ensure_dir, generate_job_id, get_timestamp, Timer
++from .utils import Timer, ensure_dir, generate_job_id, get_timestamp
+ 
+ 
+ class Pipeline:
+--- /Users/sid47/Documents/augment-projects/Data Scientist/botds/tools/metrics.py:before	2025-09-04 19:56:24.376974
++++ /Users/sid47/Documents/augment-projects/Data Scientist/botds/tools/metrics.py:after	2025-10-16 20:12:38.363681
+@@ -5,9 +5,15 @@
+ 
+ import numpy as np
+ from sklearn.metrics import (
+-    accuracy_score, f1_score, precision_score, recall_score,
+-    roc_auc_score, average_precision_score,
+-    mean_absolute_error, mean_squared_error, r2_score
++    accuracy_score,
++    average_precision_score,
++    f1_score,
++    mean_absolute_error,
++    mean_squared_error,
++    precision_score,
++    r2_score,
++    recall_score,
++    roc_auc_score,
+ )
+ 
+ from ..utils import load_pickle
+--- /Users/sid47/Documents/augment-projects/Data Scientist/botds/tools/__init__.py:before	2025-09-04 20:20:13.553408
++++ /Users/sid47/Documents/augment-projects/Data Scientist/botds/tools/__init__.py:after	2025-10-16 20:12:38.365899
+@@ -1,15 +1,15 @@
+ """Tools package for OpenAI function calling."""
+ 
+-from .data_io import DataStore
+-from .profiling import SchemaProfiler, QualityGuard
+-from .features import Featurizer, Splitter
+-from .modeling import ModelTrainer, Tuner
+-from .metrics import Metrics
+-from .eval import Calibrator, Fairness, Robustness
+-from .plotter import Plotter
+ from .artifacts import ArtifactStore, HandoffLedger
+ from .budget import BudgetGuard
++from .data_io import DataStore
++from .eval import Calibrator, Fairness, Robustness
++from .features import Featurizer, Splitter
++from .metrics import Metrics
++from .modeling import ModelTrainer, Tuner
+ from .pii import PII
++from .plotter import Plotter
++from .profiling import QualityGuard, SchemaProfiler
+ 
+ __all__ = [
+     "DataStore",
+--- /Users/sid47/Documents/augment-projects/Data Scientist/botds/tools/features.py:before	2025-09-04 19:55:15.012425
++++ /Users/sid47/Documents/augment-projects/Data Scientist/botds/tools/features.py:after	2025-10-16 20:12:38.368295
+@@ -6,7 +6,7 @@
+ import numpy as np
+ import pandas as pd
+ from sklearn.model_selection import train_test_split
+-from sklearn.preprocessing import StandardScaler, LabelEncoder
++from sklearn.preprocessing import LabelEncoder, StandardScaler
+ 
+ from ..utils import load_pickle, save_json, save_pickle
+ 
+--- /Users/sid47/Documents/augment-projects/Data Scientist/botds/tools/modeling.py:before	2025-09-04 19:55:49.867931
++++ /Users/sid47/Documents/augment-projects/Data Scientist/botds/tools/modeling.py:after	2025-10-16 20:12:38.374777
+@@ -6,8 +6,13 @@
+ 
+ import numpy as np
+ from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+-from sklearn.linear_model import LogisticRegression, LinearRegression
+-from sklearn.metrics import accuracy_score, f1_score, mean_absolute_error, mean_squared_error
++from sklearn.linear_model import LinearRegression, LogisticRegression
++from sklearn.metrics import (
++    accuracy_score,
++    f1_score,
++    mean_absolute_error,
++    mean_squared_error,
++)
+ from sklearn.model_selection import GridSearchCV
+ 
+ from ..utils import load_pickle, save_pickle

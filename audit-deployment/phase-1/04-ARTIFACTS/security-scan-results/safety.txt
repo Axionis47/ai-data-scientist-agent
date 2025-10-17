@@ -1,0 +1,705 @@
+
+
+[33m[1m+===========================================================================================================================================================================================+[0m
+
+
+[31m[1mDEPRECATED: [0m[33m[1mthis command (`check`) has been DEPRECATED, and will be unsupported beyond 01 June 2024.[0m
+
+
+[32mWe highly encourage switching to the new [0m[32m[1m`scan`[0m[32m command which is easier to use, more powerful, and can be set up to mimic the deprecated command if required.[0m
+
+
+[33m[1m+===========================================================================================================================================================================================+[0m
+
+
+/Users/sid47/venvs/PP_Analysis/lib/python3.12/site-packages/safety/safety.py:1857: UserWarning: pkg_resources is deprecated as an API. See https://setuptools.pypa.io/en/latest/pkg_resources.html. The pkg_resources package is slated for removal as early as 2025-11-30. Refrain from using this package or pin to Setuptools<81.
+  import pkg_resources
++==============================================================================+
+
+                               /$$$$$$            /$$
+                              /$$__  $$          | $$
+           /$$$$$$$  /$$$$$$ | $$  \__//$$$$$$  /$$$$$$   /$$   /$$
+          /$$_____/ |____  $$| $$$$   /$$__  $$|_  $$_/  | $$  | $$
+         |  $$$$$$   /$$$$$$$| $$_/  | $$$$$$$$  | $$    | $$  | $$
+          \____  $$ /$$__  $$| $$    | $$_____/  | $$ /$$| $$  | $$
+          /$$$$$$$/|  $$$$$$$| $$    |  $$$$$$$  |  $$$$/|  $$$$$$$
+         |_______/  \_______/|__/     \_______/   \___/   \____  $$
+                                                          /$$  | $$
+                                                         |  $$$$$$/
+  by safetycli.com                                        \______/
+
++==============================================================================+
+
+ [1mREPORT[0m 
+
+  Safety [1mv3.6.2[0m is scanning for [1mVulnerabilities[0m[1m...[0m
+[1m  Scanning dependencies[0m in your [1menvironment:[0m
+
+  -> /Users/sid47/Documents/augment-projects/AI Data Scientist/backend
+  -> /opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versio
+  ns/3.12/lib/python312.zip
+  -> /opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versio
+  ns/3.12/lib/python3.12/lib-dynload
+  -> /Users/sid47/venvs/PP_Analysis/lib/python3.12/site-
+  packages/setuptools/_vendor
+  -> /opt/homebrew/Cellar/python@3.12/3.12.11/Frameworks/Python.framework/Versio
+  ns/3.12/lib/python3.12
+  -> /Users/sid47/venvs/PP_Analysis/bin
+  -> /Users/sid47/venvs/PP_Analysis/lib/python3.12/site-packages
+
+  Using [1mopen-source vulnerability database[0m
+[1m  Found and scanned 404 packages[0m
+  Timestamp [1m2025-10-16 20:12:57[0m
+[1m  36[0m[1m vulnerabilities reported[0m
+[1m  0[0m[1m vulnerabilities ignored[0m
+
++==============================================================================+
+ [1mVULNERABILITIES REPORTED[0m 
++==============================================================================+
+
+[31m-> Vulnerability found in ydata-profiling version 4.16.1[0m
+[1m   Vulnerability ID: [0m71842
+[1m   Affected spec: [0m>=3.7.0
+[1m   ADVISORY: [0mA cross-site scripting (XSS) vulnerability in affected
+   versions of Ydata's ydata-profiling open-source library allows for
+   payloads to be run when a maliciously crafted report is viewed in the
+   browser.
+[1m   CVE-2024-37063[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71842/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71842 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in ydata-profiling version 4.16.1[0m
+[1m   Vulnerability ID: [0m71841
+[1m   Affected spec: [0m>=3.7.0
+[1m   ADVISORY: [0mUntrusted data can be deserialized in affected versions
+   of Ydata's ydata-profiling open-source library, enabling a maliciously
+   crafted report to run arbitrary code on an end user's system when loaded.
+[1m   CVE-2024-37062[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71841/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71841 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in ydata-profiling version 4.16.1[0m
+[1m   Vulnerability ID: [0m71843
+[1m   Affected spec: [0m>=3.7.0
+[1m   ADVISORY: [0mDeserialization of untrusted data can occur in affected
+   versions of Ydata's ydata-profiling open-source library, enabling a
+   maliciously crafted dataset to run arbitrary code on an end user's system
+   when loaded.
+[1m   CVE-2024-37064[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71843/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71843 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m77714
+[1m   Affected spec: [0m<4.50.0
+[1m   ADVISORY: [0mA vulnerability in the `preprocess_string()` function of
+   the `transformers.testing_utils` module in huggingface/transformers
+   version v4.48.3 allows for a Regular Expression Denial of Service (ReDoS)
+   attack. The regular expression used to process code blocks in docstrings
+   contains nested quantifiers, leading to exponential backtracking when
+   processing input with a large number of newline characters. An attacker
+   can exploit this by providing a specially crafted payload, causing high
+   CPU usage and potential application downtime, effectively resulting in a
+   Denial of Service (DoS) scenario.
+[1m   CVE-2025-2099[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/77714/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 77714 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m77149
+[1m   Affected spec: [0m<4.50.0
+[1m   ADVISORY: [0mAffected versions of the Transformers package are
+   vulnerable to Regular Expression Denial of Service (ReDoS) attacks in
+   multiple tokenizer components. The vulnerability exists in regex patterns
+   used by the Nougat, GPTSan Japanese, and GPT-NeoX Japanese tokenizers that
+   are susceptible to catastrophic backtracking. A remote attacker can
+   exploit this vulnerability by providing specially crafted input strings to
+   these tokenizers, causing excessive CPU consumption through exponential
+   time complexity in regex processing, resulting in service disruption and
+   resource exhaustion.The vulnerability was fixed by refactoring the
+   vulnerable regex patterns to eliminate backtracking potential. The fix
+   converts problematic patterns that use nested quantifiers and alternations
+   into more efficient implementations.
+[1m   CVE-2025-1194[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/77149/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 77149 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m78823
+[1m   Affected spec: [0m<4.48.0
+[1m   ADVISORY: [0mAffected versions of the transformers package are
+   vulnerable to Deserialization of Untrusted Data due to improper validation
+   when handling MobileViTV2 configuration files. The vulnerability exists in
+   versions before 4.48.0, where the configuration file parsing functionality
+   fails to properly validate user-supplied data, allowing malicious YAML
+   configuration files to be deserialized without proper sanitization checks.
+   An attacker can exploit this vulnerability by crafting a malicious
+   configuration file and convincing a target user to process it using the
+   convert_mlcvnets_to_pytorch.py script, resulting in arbitrary code
+   execution within the context of the current user when the configuration is
+   loaded.
+[1m   CVE-2024-11392[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/78823/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 78823 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m74882
+[1m   Affected spec: [0m<4.48.0
+[1m   ADVISORY: [0mAffected versions of the Hugging Face Transformers
+   library include standalone conversion scripts that are vulnerable to
+   deserialization of untrusted data, potentially leading to arbitrary code
+   execution. Users should update to the version of the Transformers library
+   where these scripts have been excluded from release distributions.
+[1m   PVE-2025-74882[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/74882/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 74882 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m78822
+[1m   Affected spec: [0m<4.48.0
+[1m   ADVISORY: [0mAffected versions of the transformers package are
+   vulnerable to Deserialization of Untrusted Data due to improper validation
+   when handling Trax model files. The vulnerability exists in versions
+   before 4.48.0, where the model file parsing functionality lacks proper
+   validation of user-supplied data, allowing deserialization of malicious
+   payloads embedded in model files without verification. An attacker can
+   exploit this vulnerability by crafting a malicious Trax model file and
+   convincing a target user to load it through the application, resulting in
+   arbitrary code execution within the context of the current user when the
+   model is processed.
+[1m   CVE-2024-11394[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/78822/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 78822 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m76262
+[1m   Affected spec: [0m<4.48.0
+[1m   ADVISORY: [0mAffected versions of the huggingface transformers
+   package are vulnerable to Regular Expression Denial of Service (ReDoS).
+   The Nougat tokenizer's post_process_single method contains a regular
+   expression pattern that fails to limit backtracking when processing
+   markdown-style headers. The vulnerable regex pattern ^#+
+   (?:\.?(?:\d|[ixv])+)*\s*(?:$|\n\s*) uses nested quantifiers with
+   overlapping character classes, leading to catastrophic backtracking. The
+   fix addresses this vulnerability by replacing the problematic pattern with
+   ^#+ (?:[\d+\.]+|[ixv\.]+)?\s*(?:$|\n\s*), which uses explicit character
+   classes and removes nested quantifiers. This prevents catastrophic
+   backtracking by limiting the regex complexity from O(2^n) to linear time,
+   ensuring the tokenizer can safely process any input without performance
+   degradation.
+[1m   CVE-2024-12720[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/76262/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 76262 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m77985
+[1m   Affected spec: [0m<4.51.0
+[1m   ADVISORY: [0mA Regular Expression Denial of Service (ReDoS)
+   vulnerability was discovered in the Hugging Face Transformers library,
+   specifically in the `get_configuration_file()` function within the
+   `transformers.configuration_utils` module. The affected version is 4.49.0,
+   and the issue is resolved in version 4.51.0. The vulnerability arises from
+   the use of a regular expression pattern `config\.(.*)\.json` that can be
+   exploited to cause excessive CPU consumption through crafted input
+   strings, leading to catastrophic backtracking. This can result in model
+   serving disruption, resource exhaustion, and increased latency in
+   applications using the library.
+[1m   CVE-2025-3263[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/77985/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 77985 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m77988
+[1m   Affected spec: [0m<4.51.0
+[1m   ADVISORY: [0mA Regular Expression Denial of Service (ReDoS)
+   vulnerability was discovered in the Hugging Face Transformers library,
+   specifically in the `get_imports()` function within
+   `dynamic_module_utils.py`. This vulnerability affects versions 4.49.0 and
+   is fixed in version 4.51.0. The issue arises from a regular expression
+   pattern `\s*try\s*:.*?except.*?:` used to filter out try/except blocks
+   from Python code, which can be exploited to cause excessive CPU
+   consumption through crafted input strings due to catastrophic
+   backtracking. This vulnerability can lead to remote code loading
+   disruption, resource exhaustion in model serving, supply chain attack
+   vectors, and development pipeline disruption.
+[1m   CVE-2025-3264[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/77988/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 77988 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m77986
+[1m   Affected spec: [0m<4.52.1
+[1m   ADVISORY: [0mHugging Face Transformers versions up to 4.49.0 are
+   affected by an improper input validation vulnerability in the
+   `image_utils.py` file. The vulnerability arises from insecure URL
+   validation using the `startswith()` method, which can be bypassed through
+   URL username injection. This allows attackers to craft URLs that appear to
+   be from YouTube but resolve to malicious domains, potentially leading to
+   phishing attacks, malware distribution, or data exfiltration. The issue is
+   fixed in version 4.52.1.
+[1m   CVE-2025-3777[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/77986/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 77986 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m78153
+[1m   Affected spec: [0m<4.52.1
+[1m   ADVISORY: [0mA Regular Expression Denial of Service (ReDoS)
+   vulnerability was discovered in the Hugging Face Transformers library,
+   specifically within the DonutProcessor class's token2json() method. This
+   vulnerability affects versions 4.51.3 and earlier, and is fixed in version
+   4.52.1. The issue arises from the regex pattern <s_(.*?)> which can be
+   exploited to cause excessive CPU consumption through crafted input strings
+   due to catastrophic backtracking. This vulnerability can lead to service
+   disruption, resource exhaustion, and potential API service
+   vulnerabilities, impacting document processing tasks using the Donut
+   model.
+[1m   CVE-2025-3933[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/78153/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 78153 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m78688
+[1m   Affected spec: [0m<4.53.0
+[1m   ADVISORY: [0mAffected versions of the Hugging Face Transformers
+   package are vulnerable to Regular Expression Denial of Service (ReDoS) due
+   to an inefficient regex pattern in weight name conversion. The
+   convert_tf_weight_name_to_pt_weight_name() function uses the regular
+   expression pattern /[^/]*___([^/]*)/, which is susceptible to catastrophic
+   backtracking when processing specially crafted TensorFlow weight names. An
+   attacker can exploit this vulnerability by providing malicious weight
+   names during model conversion between TensorFlow and PyTorch formats,
+   causing excessive CPU consumption and potentially rendering the service
+   unresponsive.
+[1m   CVE-2025-51970[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/78688/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 78688 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m71601
+[1m   Affected spec: [0m<4.38.0
+[1m   ADVISORY: [0mThe huggingface/transformers library is vulnerable to
+   arbitrary code execution through deserialization of untrusted data within
+   the `load_repo_checkpoint()` function of the `TFPreTrainedModel()` class.
+   Attackers can execute arbitrary code and commands by crafting a malicious
+   serialized payload, exploiting the use of `pickle.load()` on data from
+   potentially untrusted sources. This vulnerability allows for remote code
+   execution (RCE) by deceiving victims into loading a seemingly harmless
+   checkpoint during a normal training process, thereby enabling attackers to
+   execute arbitrary code on the targeted machine.
+[1m   CVE-2024-3568[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71601/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71601 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in transformers version 4.36.0[0m
+[1m   Vulnerability ID: [0m64402
+[1m   Affected spec: [0m<4.37.0
+[1m   ADVISORY: [0mTransformers is affected by a shell injection
+   vulnerability. It appears that while this issue is generally not critical
+   for the library's primary use cases, it can become more significant in
+   specific production environments. Particularly in scenarios where the
+   library interacts with user-generated input — such as in web application
+   backends, desktop applications, and cloud-based ML services — the risk of
+   arbitrary code execution
+   increases.https://github.com/huggingface/transformers/pull/28299
+[1m   PVE-2024-64402[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/64402/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 64402 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in starlette version 0.37.2[0m
+[1m   Vulnerability ID: [0m78279
+[1m   Affected spec: [0m<0.47.2
+[1m   ADVISORY: [0mStarlette is a lightweight ASGI (Asynchronous Server
+   Gateway Interface) framework/toolkit, designed for building async web
+   services in Python. In versions 0.47.1 and below, when parsing a multi-
+   part form with large files (greater than the default max spool size)
+   starlette will block the main thread to roll the file over to disk. This
+   blocks the event thread which means the application can't accept new
+   connections. The UploadFile code has a minor bug where instead of just
+   checking for self._in_memory, the logic should also check if the
+   additional bytes will cause a rollover. The vulnerability is fixed in
+   version 0.47.2.
+[1m   CVE-2025-54121[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/78279/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 78279 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in starlette version 0.37.2[0m
+[1m   Vulnerability ID: [0m73725
+[1m   Affected spec: [0m<0.40.0
+[1m   ADVISORY: [0mAffected versions of the Starlette framework are
+   vulnerable to Denial of Service (DoS) attacks due to the lack of
+   restrictions on multipart part sizes. The vulnerability resides in the
+   MultiPartParser class, which previously did not enforce size limits on
+   incoming data. This issue is mitigated by introducing a max_part_size
+   constraint and raises exceptions when limits are exceeded.
+[1m   CVE-2024-47874[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/73725/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 73725 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in regex version 2024.11.6[0m
+[1m   Vulnerability ID: [0m78558
+[1m   Affected spec: [0m<2025.2.10
+[1m   ADVISORY: [0mAffected versions of this package are potentially
+   vulnerable to Regular Expression Denial of Service (ReDoS) due to
+   catastrophic backtracking in the V1 engine when processing patterns that
+   combine full‑casefolding with the [\s\S]* quantifier. The engine’s AnyAll
+   node fails to prevent nested quantifier backtracking, leading to infinite
+   loops and CPU exhaustion.
+[1m   PVE-2025-78558[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/78558/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 78558 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in python-jose version 3.3.0[0m
+[1m   Vulnerability ID: [0m70715
+[1m   Affected spec: [0m<3.4.0
+[1m   ADVISORY: [0mAffected versions of Python-jose have a algorithm
+   confusion vulnerability with OpenSSH ECDSA keys and other key formats.
+   This is similar to CVE-2022-29217.
+[1m   CVE-2024-33663[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/70715/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 70715 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in python-jose version 3.3.0[0m
+[1m   Vulnerability ID: [0m70716
+[1m   Affected spec: [0m<3.4.0
+[1m   ADVISORY: [0mAffected versions of Python-jose allow attackers to
+   cause a denial of service (resource consumption) during a decode via a
+   crafted JSON Web Encryption (JWE) token with a high compression ratio, aka
+   a "JWT bomb." This is similar to CVE-2024-21319.
+[1m   CVE-2024-33664[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/70716/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 70716 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in mlflow version 3.1.4[0m
+[1m   Vulnerability ID: [0m71692
+[1m   Affected spec: [0m>=2.0.0rc0
+[1m   ADVISORY: [0mDeserialization of untrusted data can occur in affected
+   versions of the MLflow platform, enabling a maliciously uploaded
+   Tensorflow model to run arbitrary code on an end user’s system when
+   interacted with.
+[1m   CVE-2024-37057[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71692/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71692 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in mlflow version 3.1.4[0m
+[1m   Vulnerability ID: [0m71579
+[1m   Affected spec: [0m>=1.27.0
+[1m   ADVISORY: [0mDeserialization of untrusted data can occur in versions
+   of the MLflow platform running version 1.27.0 or newer, enabling a
+   maliciously crafted Recipe to execute arbitrary code on an end user’s
+   system when run.
+[1m   CVE-2024-37060[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71579/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71579 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in mlflow version 3.1.4[0m
+[1m   Vulnerability ID: [0m71584
+[1m   Affected spec: [0m>=1.23.0
+[1m   ADVISORY: [0mDeserialization of untrusted data can occur in versions
+   of the MLflow platform affected versions, enabling a maliciously uploaded
+   LightGBM scikit-learn model to run arbitrary code on an end user’s system
+   when interacted with.
+[1m   CVE-2024-37056[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71584/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71584 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in mlflow version 3.1.4[0m
+[1m   Vulnerability ID: [0m71691
+[1m   Affected spec: [0m>=0.5.0
+[1m   ADVISORY: [0mDeserialization of untrusted data can occur in affected
+   versions of the MLflow platform running, enabling a maliciously uploaded
+   PyTorch model to run arbitrary code on an end user’s system when
+   interacted with.
+[1m   CVE-2024-37059[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71691/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71691 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in mlflow version 3.1.4[0m
+[1m   Vulnerability ID: [0m71578
+[1m   Affected spec: [0m>=1.1.0
+[1m   ADVISORY: [0mDeserialization of untrusted data can occur in versions
+   of the MLflow platform running version 1.1.0 or newer, enabling a
+   maliciously uploaded scikit-learn model to run arbitrary code on an end
+   user’s system when interacted with.
+[1m   CVE-2024-37053[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71578/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71578 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in mlflow version 3.1.4[0m
+[1m   Vulnerability ID: [0m71577
+[1m   Affected spec: [0m>=1.1.0
+[1m   ADVISORY: [0mDeserialization of untrusted data can occur in versions
+   of the MLflow platform running version 1.1.0 or newer, enabling a
+   maliciously uploaded scikit-learn model to run arbitrary code on an end
+   user’s system when interacted with.
+[1m   CVE-2024-37052[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71577/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71577 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in mlflow version 3.1.4[0m
+[1m   Vulnerability ID: [0m71587
+[1m   Affected spec: [0m>=0.9.0
+[1m   ADVISORY: [0mDeserialization of untrusted data can occur in affected
+   versions of the MLflow platform, enabling a maliciously uploaded PyFunc
+   model to run arbitrary code on an end user’s system when interacted with.
+[1m   CVE-2024-37054[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71587/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71587 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in mlflow version 3.1.4[0m
+[1m   Vulnerability ID: [0m71693
+[1m   Affected spec: [0m>=1.24.0
+[1m   ADVISORY: [0mDeserialization of untrusted data can occur in affected
+   versions of the MLflow platform, enabling a maliciously uploaded pmdarima
+   model to run arbitrary code on an end user’s system when interacted with.
+[1m   CVE-2024-37055[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71693/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71693 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in jinja2 version 3.1.4[0m
+[1m   Vulnerability ID: [0m74735
+[1m   Affected spec: [0m>=3.0.0a1,<3.1.5
+[1m   ADVISORY: [0mA vulnerability in the Jinja compiler allows an attacker
+   who can control both the content and filename of a template to execute
+   arbitrary Python code, bypassing Jinja's sandbox protections. To exploit
+   this vulnerability, an attacker must have the ability to manipulate both
+   the template's filename and its contents. The risk depends on the
+   application's specific use case. This issue affects applications that
+   render untrusted templates where the attacker can determine the template
+   filename, potentially leading to severe security breaches.
+[1m   CVE-2024-56201[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/74735/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 74735 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in jinja2 version 3.1.4[0m
+[1m   Vulnerability ID: [0m76378
+[1m   Affected spec: [0m<3.1.5
+[1m   ADVISORY: [0mAn oversight in how the Jinja sandboxed environment
+   detects calls to str.format allows an attacker who controls the content of
+   a template to execute arbitrary Python code. To exploit the vulnerability,
+   an attacker needs to control the content of a template. Whether that is
+   the case depends on the type of application using Jinja. This
+   vulnerability impacts users of applications which execute untrusted
+   templates. Jinja's sandbox does catch calls to str.format and ensures they
+   don't escape the sandbox. However, it's possible to store a reference to a
+   malicious string's format method, then pass that to a filter that calls
+   it. No such filters are built-in to Jinja, but could be present through
+   custom filters in an application. After the fix, such indirect calls are
+   also handled by the sandbox.
+[1m   CVE-2024-56326[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/76378/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 76378 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in jinja2 version 3.1.4[0m
+[1m   Vulnerability ID: [0m75976
+[1m   Affected spec: [0m<3.1.6
+[1m   ADVISORY: [0mPrior to 3.1.6, an oversight in how the Jinja sandboxed
+   environment interacts with the |attr filter allows an attacker that
+   controls the content of a template to execute arbitrary Python code. To
+   exploit the vulnerability, an attacker needs to control the content of a
+   template. Whether that is the case depends on the type of application
+   using Jinja. This vulnerability impacts users of applications which
+   execute untrusted templates. Jinja's sandbox does catch calls to
+   str.format and ensures they don't escape the sandbox. However, it's
+   possible to use the |attr filter to get a reference to a string's plain
+   format method, bypassing the sandbox. After the fix, the |attr filter no
+   longer bypasses the environment's attribute lookup. This vulnerability is
+   fixed in 3.1.6.
+[1m   CVE-2025-27516[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/75976/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 75976 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in h2 version 4.2.0[0m
+[1m   Vulnerability ID: [0m79077
+[1m   Affected spec: [0m<4.3.0
+[1m   ADVISORY: [0mAffected versions of the h2 package are vulnerable to
+   HTTP Request Smuggling due to improper validation of illegal characters in
+   HTTP headers. The package allows CRLF characters to be injected into
+   header names and values without proper sanitisation, which can cause
+   request boundary manipulation when HTTP/2 requests are downgraded to
+   HTTP/1.1 by downstream servers.
+[1m   CVE-2025-57804[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/79077/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 79077 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in ecdsa version 0.19.1[0m
+[1m   Vulnerability ID: [0m64459
+[1m   Affected spec: [0m>=0
+[1m   ADVISORY: [0mThe python-ecdsa library, which implements ECDSA
+   cryptography in Python, is vulnerable to the Minerva attack
+   (CVE-2024-23342). This vulnerability arises because scalar multiplication
+   is not performed in constant time, affecting ECDSA signatures, key
+   generation, and ECDH operations. ECDSA signature verification remains
+   unaffected. The project maintainers have stated that there is no plan to
+   release a fix for this vulnerability, citing their security policy:"As
+   stated in the security policy, side-channel vulnerabilities are outside
+   the scope of the project. This is not due to a lack of interest in side-
+   channel secure implementations but rather because the main goal of the
+   project is to be pure Python. Implementing side-channel-free code in pure
+   Python is impossible. Therefore, we do not plan to release a fix for this
+   vulnerability."NOTE: The specs we include in this advisory differ from the
+   publicly available on other sources. That's because research by Safety CLI
+   Cybersecurity Team confirms that there is no plan to address this
+   vulnerability.
+[1m   CVE-2024-23342[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/64459/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 64459 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in ecdsa version 0.19.1[0m
+[1m   Vulnerability ID: [0m64396
+[1m   Affected spec: [0m>=0
+[1m   ADVISORY: [0mEcdsa does not protects against side-channel attacks.
+   This is because Python does not provide side-channel secure primitives
+   (with the exception of hmac.compare_digest()), making side-channel secure
+   programming impossible. For a sophisticated attacker observing just one
+   operation with a private key will be sufficient to completely reconstruct
+   the private key.https://pypi.org/project/ecdsa/#Security
+[1m   PVE-2024-64396[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/64396/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 64396 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
+[31m-> Vulnerability found in anyio version 3.7.1[0m
+[1m   Vulnerability ID: [0m71199
+[1m   Affected spec: [0m<4.4.0
+[1m   ADVISORY: [0mAnyio version 4.4.0 addresses a thread race condition in
+   `_eventloop.get_asynclib()` that caused crashes when multiple event loops
+   of the same backend were running in separate threads and simultaneously
+   attempted to use AnyIO for the first time. This fix ensures more stable
+   and reliable performance in multi-threaded environments.
+[1m   PVE-2024-71199[0m
+[1m   For more information about this vulnerability, visit
+   [0mhttps://data.safetycli.com/v/71199/97c[0m
+   To ignore this vulnerability, use PyUp vulnerability id 71199 in safety’s
+   ignore command-line argument or add the ignore to your safety policy file.
+
+
++==============================================================================+
+   [32m[1mREMEDIATIONS[0m
+
+  36 vulnerabilities were reported in 10 packages. For detailed remediation & 
+  fix recommendations, upgrade to a commercial license. 
+
++==============================================================================+
+
+ Scan was completed. 36 vulnerabilities were reported. 
+
++==============================================================================+[0m
+
+
+[33m[1m+===========================================================================================================================================================================================+[0m
+
+
+[31m[1mDEPRECATED: [0m[33m[1mthis command (`check`) has been DEPRECATED, and will be unsupported beyond 01 June 2024.[0m
+
+
+[32mWe highly encourage switching to the new [0m[32m[1m`scan`[0m[32m command which is easier to use, more powerful, and can be set up to mimic the deprecated command if required.[0m
+
+
+[33m[1m+===========================================================================================================================================================================================+[0m
+
+
