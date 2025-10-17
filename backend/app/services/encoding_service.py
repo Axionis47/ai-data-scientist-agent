@@ -15,6 +15,7 @@ Notes
 - For regression, the target mean is used directly.
 - For multiclass, this encoder is not applied; callers should avoid wiring it.
 """
+
 from __future__ import annotations
 from typing import Any, Dict, List, Optional
 
@@ -26,7 +27,13 @@ from sklearn.model_selection import KFold, StratifiedKFold
 
 
 class TargetMeanEncoder(BaseEstimator, TransformerMixin):
-    def __init__(self, cols: Optional[List[str]] = None, smoothing: float = 10.0, oof_folds: int = 5, random_state: int = 42):
+    def __init__(
+        self,
+        cols: Optional[List[str]] = None,
+        smoothing: float = 10.0,
+        oof_folds: int = 5,
+        random_state: int = 42,
+    ):
         self.cols = cols
         self.smoothing = float(smoothing)
         self.oof_folds = int(oof_folds)
@@ -72,8 +79,12 @@ class TargetMeanEncoder(BaseEstimator, TransformerMixin):
                 mean = grp["mean"].values
                 cnt = grp["count"].values
                 # Smoothing
-                m = (cnt * mean + self.smoothing * self._prior_) / (cnt + self.smoothing)
-                self._maps_[c] = {k: float(v) for k, v in zip(grp.index.tolist(), m.tolist())}
+                m = (cnt * mean + self.smoothing * self._prior_) / (
+                    cnt + self.smoothing
+                )
+                self._maps_[c] = {
+                    k: float(v) for k, v in zip(grp.index.tolist(), m.tolist())
+                }
             except Exception:
                 self._maps_[c] = {}
         # Prepare OOF buffer if requested
@@ -83,10 +94,18 @@ class TargetMeanEncoder(BaseEstimator, TransformerMixin):
                 n = len(df)
                 oof = np.zeros((n, len(self._trained_cols_)), dtype=float)
                 if self._is_binary_:
-                    splitter = StratifiedKFold(n_splits=min(self.oof_folds, max(2, len(df) // 3)), shuffle=True, random_state=self.random_state)
+                    splitter = StratifiedKFold(
+                        n_splits=min(self.oof_folds, max(2, len(df) // 3)),
+                        shuffle=True,
+                        random_state=self.random_state,
+                    )
                     split_iter = splitter.split(df, y)
                 else:
-                    splitter = KFold(n_splits=min(self.oof_folds, max(2, len(df) // 3)), shuffle=True, random_state=self.random_state)
+                    splitter = KFold(
+                        n_splits=min(self.oof_folds, max(2, len(df) // 3)),
+                        shuffle=True,
+                        random_state=self.random_state,
+                    )
                     split_iter = splitter.split(df)
                 for tr_idx, va_idx in split_iter:
                     yt_tr = yt.iloc[tr_idx]
@@ -98,8 +117,13 @@ class TargetMeanEncoder(BaseEstimator, TransformerMixin):
                             grp = pd.DataFrame({"x": df_tr[c], "y": yt_tr}).groupby("x")["y"].agg(["mean", "count"])  # type: ignore
                             mean = grp["mean"].values
                             cnt = grp["count"].values
-                            m = (cnt * mean + self.smoothing * self._prior_) / (cnt + self.smoothing)
-                            maps_fold[c] = {k: float(v) for k, v in zip(grp.index.tolist(), m.tolist())}
+                            m = (cnt * mean + self.smoothing * self._prior_) / (
+                                cnt + self.smoothing
+                            )
+                            maps_fold[c] = {
+                                k: float(v)
+                                for k, v in zip(grp.index.tolist(), m.tolist())
+                            }
                         except Exception:
                             maps_fold[c] = {}
                     # Apply to validation fold
@@ -134,7 +158,9 @@ class TargetMeanEncoder(BaseEstimator, TransformerMixin):
         return self.transform(X)
 
 
-def split_categorical_by_cardinality(eda: Dict[str, Any], cat_cols: List[str], threshold: int = 50) -> tuple[list[str], list[str]]:
+def split_categorical_by_cardinality(
+    eda: Dict[str, Any], cat_cols: List[str], threshold: int = 50
+) -> tuple[list[str], list[str]]:
     """Split categorical columns into low/high-cardinality groups using EDA nunique if available.
     Returns (low, high).
     """
@@ -153,4 +179,3 @@ def split_categorical_by_cardinality(eda: Dict[str, Any], cat_cols: List[str], t
         else:
             low.append(c)
     return low, high
-

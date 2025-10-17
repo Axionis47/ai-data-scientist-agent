@@ -10,6 +10,7 @@ Notes
 - Functions are conservative and handle edge cases gracefully.
 - If proba is unavailable, falls back to using predicted labels where possible.
 """
+
 from __future__ import annotations
 from typing import Dict, Tuple, Optional
 
@@ -36,13 +37,17 @@ def choose_threshold(y_true, proba, strategy: str = "f1") -> Tuple[float, float]
         f1s = 2 * prec * rec / (prec + rec + 1e-12)
         if len(thr) == 0:
             return 0.5, float(np.nan)
-        best_idx = int(np.argmax(f1s[:-1]))  # last f1 corresponds to threshold=1 sentinel
+        best_idx = int(
+            np.argmax(f1s[:-1])
+        )  # last f1 corresponds to threshold=1 sentinel
         return float(thr[best_idx]), float(f1s[best_idx])
     except Exception:
         return 0.5, float("nan")
 
 
-def compute_binary_metrics(y_true, proba: Optional[np.ndarray], preds: Optional[np.ndarray] = None) -> Dict[str, float]:
+def compute_binary_metrics(
+    y_true, proba: Optional[np.ndarray], preds: Optional[np.ndarray] = None
+) -> Dict[str, float]:
     out: Dict[str, float] = {}
     try:
         if preds is not None:
@@ -64,8 +69,6 @@ def compute_binary_metrics(y_true, proba: Optional[np.ndarray], preds: Optional[
     return out
 
 
-
-
 def compute_multiclass_metrics(y_true, y_pred) -> Dict[str, float]:
     """Basic multiclass metrics.
     Returns weighted F1 and accuracy; designed as a light wrapper to keep parity with binary.
@@ -73,6 +76,7 @@ def compute_multiclass_metrics(y_true, y_pred) -> Dict[str, float]:
     out: Dict[str, float] = {}
     try:
         from sklearn.metrics import f1_score, accuracy_score
+
         out["f1"] = float(f1_score(y_true, y_pred, average="weighted"))
         out["acc"] = float(accuracy_score(y_true, y_pred))
     except Exception:
@@ -85,12 +89,16 @@ def compute_regression_metrics(y_true, y_pred) -> Dict[str, float]:
     out: Dict[str, float] = {}
     try:
         from sklearn.metrics import r2_score, root_mean_squared_error
+
         out["r2"] = float(r2_score(y_true, y_pred))
         try:
             out["rmse"] = float(root_mean_squared_error(y_true, y_pred))
         except Exception:
             import numpy as _np
-            out["rmse"] = float(_np.sqrt(_np.mean(((_np.asarray(y_true) - _np.asarray(y_pred)) ** 2))))
+
+            out["rmse"] = float(
+                _np.sqrt(_np.mean(((_np.asarray(y_true) - _np.asarray(y_pred)) ** 2)))
+            )
     except Exception:
         pass
     return out

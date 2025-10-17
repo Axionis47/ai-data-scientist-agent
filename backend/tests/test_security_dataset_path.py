@@ -20,4 +20,3 @@ def test_analyze_rejects_outside_jobs_dir(tmp_path: Path):
     }
     r = client.post("/analyze", json=body)
     assert r.status_code == 400
-

@@ -43,4 +43,3 @@ def test_report_json_with_model_card_invalid():
     }
     errs = validate_report_json(obj)
     assert any("model_card missing" in e for e in errs)
-

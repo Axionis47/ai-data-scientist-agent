@@ -15,6 +15,7 @@ Notes
 - Designed to be cheap; avoid heavy cross-features scans.
 - Strict thresholds chosen to minimize false positives; adjust as needed.
 """
+
 from __future__ import annotations
 from typing import Any, Dict, List
 import math
@@ -41,12 +42,20 @@ def _is_binary_series(s: pd.Series) -> bool:
 def assess_target_viability(df: pd.DataFrame, target: str) -> Dict[str, Any]:
     out: Dict[str, Any] = {"issues": [], "notes": []}
     if target not in df.columns:
-        out["issues"].append({"id": "target_missing", "severity": "error", "detail": f"Target '{target}' not in columns"})
+        out["issues"].append(
+            {
+                "id": "target_missing",
+                "severity": "error",
+                "detail": f"Target '{target}' not in columns",
+            }
+        )
         return out
     y = df[target]
     n = len(y)
     if n == 0:
-        out["issues"].append({"id": "no_rows", "severity": "error", "detail": "No rows in dataset"})
+        out["issues"].append(
+            {"id": "no_rows", "severity": "error", "detail": "No rows in dataset"}
+        )
         return out
     if ptypes.is_numeric_dtype(y):
         # Regression viability: non-zero variance
@@ -55,27 +64,51 @@ def assess_target_viability(df: pd.DataFrame, target: str) -> Dict[str, Any]:
         except Exception:
             var = 0.0
         if not (var > 0.0):
-            out["issues"].append({"id": "zero_variance_target", "severity": "error", "detail": "Regression target variance is zero"})
+            out["issues"].append(
+                {
+                    "id": "zero_variance_target",
+                    "severity": "error",
+                    "detail": "Regression target variance is zero",
+                }
+            )
         else:
             out["notes"].append(f"Regression target variance={var:.4g}")
     else:
         # Classification viability: binary prevalence
         if _is_binary_series(y):
-            p = float(np.mean(pd.to_numeric(y, errors="coerce"))) if ptypes.is_numeric_dtype(y) else float(y.astype("category").cat.codes.mean())
+            p = (
+                float(np.mean(pd.to_numeric(y, errors="coerce")))
+                if ptypes.is_numeric_dtype(y)
+                else float(y.astype("category").cat.codes.mean())
+            )
             minority = min(p, 1 - p)
             out["notes"].append(f"Binary prevalence minority={minority:.3f}")
             if minority < 0.01:
-                out["issues"].append({"id": "extreme_imbalance", "severity": "warn", "detail": f"Minority class <1% ({minority:.3f})"})
+                out["issues"].append(
+                    {
+                        "id": "extreme_imbalance",
+                        "severity": "warn",
+                        "detail": f"Minority class <1% ({minority:.3f})",
+                    }
+                )
         else:
             # Multi-class: require minimal per-class counts
             counts = y.value_counts(dropna=False)
             minc = int(counts.min()) if len(counts) else 0
             if minc < 5:
-                out["issues"].append({"id": "tiny_class", "severity": "warn", "detail": f"At least one class has <5 samples ({minc})"})
+                out["issues"].append(
+                    {
+                        "id": "tiny_class",
+                        "severity": "warn",
+                        "detail": f"At least one class has <5 samples ({minc})",
+                    }
+                )
     return out
 
 
-def detect_identifier_columns(df: pd.DataFrame, nunique: Dict[str, int] | None = None) -> List[str]:
+def detect_identifier_columns(
+    df: pd.DataFrame, nunique: Dict[str, int] | None = None
+) -> List[str]:
     n = len(df)
     nunique_map = nunique or {c: int(df[c].nunique(dropna=False)) for c in df.columns}
     id_like = []
@@ -90,7 +123,9 @@ def detect_identifier_columns(df: pd.DataFrame, nunique: Dict[str, int] | None =
     return id_like
 
 
-def detect_near_perfect_predictors(df: pd.DataFrame, target: str, max_check_cols: int = 50) -> List[str]:
+def detect_near_perfect_predictors(
+    df: pd.DataFrame, target: str, max_check_cols: int = 50
+) -> List[str]:
     if target not in df.columns:
         return []
     y = df[target]
@@ -123,10 +158,22 @@ def detect_near_perfect_predictors(df: pd.DataFrame, target: str, max_check_cols
                         if ct < 5:
                             continue
                         covered += ct
-                        mean_y = float(pd.to_numeric(y[mask], errors="coerce").fillna(0).mean()) if ptypes.is_numeric_dtype(y) else float((y[mask].astype("category").cat.codes > 0).mean())
+                        mean_y = (
+                            float(
+                                pd.to_numeric(y[mask], errors="coerce").fillna(0).mean()
+                            )
+                            if ptypes.is_numeric_dtype(y)
+                            else float(
+                                (y[mask].astype("category").cat.codes > 0).mean()
+                            )
+                        )
                         if mean_y < 0.01 or mean_y > 0.99:
                             pure_hits += ct
-                    if covered > 0 and (pure_hits / covered) > 0.98 and covered / max(1, len(y)) > 0.5:
+                    if (
+                        covered > 0
+                        and (pure_hits / covered) > 0.98
+                        and covered / max(1, len(y)) > 0.5
+                    ):
                         flagged.append(c)
             except Exception:
                 continue
@@ -144,8 +191,14 @@ def detect_near_perfect_predictors(df: pd.DataFrame, target: str, max_check_cols
     return flagged
 
 
-def data_quality_report(job_id: str, df: pd.DataFrame, eda: Dict[str, Any], manifest: Dict[str, Any]) -> Dict[str, Any]:
-    target = (manifest.get("framing") or {}).get("target") or manifest.get("target") or eda.get("target")
+def data_quality_report(
+    job_id: str, df: pd.DataFrame, eda: Dict[str, Any], manifest: Dict[str, Any]
+) -> Dict[str, Any]:
+    target = (
+        (manifest.get("framing") or {}).get("target")
+        or manifest.get("target")
+        or eda.get("target")
+    )
     nunique = eda.get("nunique") or {}
     issues: List[Dict[str, Any]] = []
     recs: List[str] = []
@@ -154,24 +207,48 @@ def data_quality_report(job_id: str, df: pd.DataFrame, eda: Dict[str, Any], mani
         tviab = assess_target_viability(df, target)
         issues.extend(tviab.get("issues", []))
     else:
-        issues.append({"id": "target_unknown", "severity": "info", "detail": "Target not set yet; viability not assessed"})
+        issues.append(
+            {
+                "id": "target_unknown",
+                "severity": "info",
+                "detail": "Target not set yet; viability not assessed",
+            }
+        )
 
     id_cols = detect_identifier_columns(df, nunique)
     if id_cols:
-        issues.append({"id": "identifier_columns", "severity": "warn", "detail": f"Identifier-like columns detected: {id_cols[:5]}"})
-        recs.append("Consider excluding ID-like columns from modeling features to avoid leakage.")
+        issues.append(
+            {
+                "id": "identifier_columns",
+                "severity": "warn",
+                "detail": f"Identifier-like columns detected: {id_cols[:5]}",
+            }
+        )
+        recs.append(
+            "Consider excluding ID-like columns from modeling features to avoid leakage."
+        )
 
     if target:
         leak_cols = detect_near_perfect_predictors(df, target)
         if leak_cols:
-            issues.append({"id": "near_perfect_predictors", "severity": "warn", "detail": f"Potential leakage via columns: {leak_cols[:5]} (near-perfect mapping to target)"})
-            recs.append("Investigate flagged columns; consider removing or shifting to prevent leakage.")
+            issues.append(
+                {
+                    "id": "near_perfect_predictors",
+                    "severity": "warn",
+                    "detail": f"Potential leakage via columns: {leak_cols[:5]} (near-perfect mapping to target)",
+                }
+            )
+            recs.append(
+                "Investigate flagged columns; consider removing or shifting to prevent leakage."
+            )
 
     # Timeseries note if time columns present and split is time
     time_cols = eda.get("time_columns") or eda.get("time_like_candidates") or []
-    dec = ((manifest.get("router_plan") or {}).get("decisions") or {})
+    dec = (manifest.get("router_plan") or {}).get("decisions") or {}
     if time_cols and str(dec.get("split") or "").lower() == "time":
-        recs.append("Using time-based split; ensure features do not include future information relative to the split.")
+        recs.append(
+            "Using time-based split; ensure features do not include future information relative to the split."
+        )
 
     summary = "; ".join(sorted(set([i.get("id") for i in issues]))) or "OK"
     return {"issues": issues, "recommendations": recs, "summary": summary}
@@ -183,7 +260,9 @@ def summarize_outliers(df: pd.DataFrame, max_cols: int = 10) -> Dict[str, Any]:
     """
     out: Dict[str, Any] = {}
     try:
-        num_cols = [c for c in df.columns if ptypes.is_numeric_dtype(df[c])][: max(0, int(max_cols))]
+        num_cols = [c for c in df.columns if ptypes.is_numeric_dtype(df[c])][
+            : max(0, int(max_cols))
+        ]
         for c in num_cols:
             try:
                 s = pd.to_numeric(df[c], errors="coerce").dropna()
@@ -196,10 +275,16 @@ def summarize_outliers(df: pd.DataFrame, max_cols: int = 10) -> Dict[str, Any]:
                 upper = q3 - 1.5 * iqr + 3.0 * iqr  # keep symmetrical expression clear
                 upper = q3 + 1.5 * iqr
                 n_out = int(((s < lower) | (s > upper)).sum())
-                out[c] = {"q1": q1, "q3": q3, "iqr": float(iqr), "lower": lower, "upper": upper, "n_outliers": n_out}
+                out[c] = {
+                    "q1": q1,
+                    "q3": q3,
+                    "iqr": float(iqr),
+                    "lower": lower,
+                    "upper": upper,
+                    "n_outliers": n_out,
+                }
             except Exception:
                 continue
     except Exception:
         return {}
     return out
-

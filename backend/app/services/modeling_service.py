@@ -6,4 +6,3 @@ Stable entry point for modeling. Delegates to app.modeling.pipeline.
 from ..modeling.pipeline import run_modeling  # re-export
 
 __all__ = ["run_modeling"]
-

@@ -11,6 +11,7 @@ Design
 - Avoids heavy operations: hashes only first couple MB of dataset file when possible
 - Graceful fallbacks if path is remote or unavailable
 """
+
 from __future__ import annotations
 from typing import Any, Dict
 
@@ -24,12 +25,14 @@ def _file_fingerprint(path: Path, max_bytes: int = 2 * 1024 * 1024) -> Dict[str,
     info: Dict[str, Any] = {}
     try:
         st = path.stat()
-        info.update({
-            "size": int(st.st_size),
-            "mtime": int(st.st_mtime),
-            "name": path.name,
-            "suffix": path.suffix,
-        })
+        info.update(
+            {
+                "size": int(st.st_size),
+                "mtime": int(st.st_mtime),
+                "name": path.name,
+                "suffix": path.suffix,
+            }
+        )
         h = hashlib.sha1()
         with path.open("rb") as f:
             remaining = max_bytes
@@ -45,12 +48,15 @@ def _file_fingerprint(path: Path, max_bytes: int = 2 * 1024 * 1024) -> Dict[str,
     return info
 
 
-def build_reproducibility(job_id: str, manifest: Dict[str, Any], eda: Dict[str, Any]) -> Dict[str, Any]:
+def build_reproducibility(
+    job_id: str, manifest: Dict[str, Any], eda: Dict[str, Any]
+) -> Dict[str, Any]:
     # Environment
     try:
         import numpy as np  # noqa: F401
         import pandas as pd  # noqa: F401
         import sklearn  # noqa: F401
+
         np_ver = __import__("numpy").__version__
         pd_ver = __import__("pandas").__version__
         sk_ver = __import__("sklearn").__version__
@@ -67,7 +73,9 @@ def build_reproducibility(job_id: str, manifest: Dict[str, Any], eda: Dict[str, 
     # Dataset fingerprint (best-effort)
     ds = {}
     try:
-        dspath = Path(manifest.get("dataset_path")) if manifest.get("dataset_path") else None
+        dspath = (
+            Path(manifest.get("dataset_path")) if manifest.get("dataset_path") else None
+        )
         if dspath and dspath.exists():
             ds = _file_fingerprint(dspath)
             ds["path_basename"] = dspath.name
@@ -91,4 +99,3 @@ def build_reproducibility(job_id: str, manifest: Dict[str, Any], eda: Dict[str, 
         "cv": cv,
     }
     return repro
-

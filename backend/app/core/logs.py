@@ -33,7 +33,9 @@ class _JsonFormatter(logging.Formatter):
 
 
 class _JobIdFilter(logging.Filter):
-    def filter(self, record: logging.LogRecord) -> bool:  # pragma: no cover - formatting
+    def filter(
+        self, record: logging.LogRecord
+    ) -> bool:  # pragma: no cover - formatting
         try:
             msg = record.getMessage()
             if isinstance(msg, str) and msg.startswith("[") and "]" in msg[:48]:
@@ -76,7 +78,13 @@ for _lg in (eda_logger, model_logger, log):
     _lg.setLevel(getattr(logging, str(LOG_LEVEL or "INFO").upper(), logging.INFO))
 
 
-def eda_decision(job_id: str, message: str, *, stage: str | None = None, duration_ms: int | None = None):
+def eda_decision(
+    job_id: str,
+    message: str,
+    *,
+    stage: str | None = None,
+    duration_ms: int | None = None,
+):
     try:
         extra = {}
         if stage:
@@ -93,7 +101,13 @@ def eda_decision(job_id: str, message: str, *, stage: str | None = None, duratio
         log.debug(f"eda_decision logging failed: {e}")
 
 
-def model_decision(job_id: str, message: str, *, stage: str | None = None, duration_ms: int | None = None):
+def model_decision(
+    job_id: str,
+    message: str,
+    *,
+    stage: str | None = None,
+    duration_ms: int | None = None,
+):
     try:
         extra = {}
         if stage:
