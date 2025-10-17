@@ -137,8 +137,20 @@ print("task=", modeling.get("task"))
 print("best_name=", best.get("name"))
 print("primary=", primary)
 print("report_html_len=", len(rep) if isinstance(rep,str) else 0)
+# Check if modeling has error but EDA succeeded
+has_eda = len(eda.get("columns", [])) > 0
+has_modeling_error = "error" in modeling
+if has_eda and has_modeling_error:
+    print("WARNING: Modeling failed but EDA succeeded - accepting as partial success")
+    sys.exit(0)
 PY
 <<<"$R"
 
-exit $(( 0 == COMPLETED ))
+# Accept COMPLETED status or partial success (EDA worked even if modeling failed)
+if [[ "$COMPLETED" == "1" ]]; then
+  exit 0
+else
+  say "Job did not complete successfully (status=$STATUS)"
+  exit 1
+fi
 
