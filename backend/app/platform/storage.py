@@ -8,7 +8,7 @@ try:
 except Exception:  # pragma: no cover
     gcs_storage = None  # type: ignore
 
-from ..core.config import JOBS_DIR, REPORT_LOGO_URL
+from ..core.config import JOBS_DIR
 
 
 class Storage:

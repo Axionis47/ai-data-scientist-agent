@@ -11,7 +11,7 @@ Notes
 - If proba is unavailable, falls back to using predicted labels where possible.
 """
 from __future__ import annotations
-from typing import Any, Dict, Tuple, Optional
+from typing import Dict, Tuple, Optional
 
 import numpy as np
 from sklearn.metrics import (

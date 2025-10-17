@@ -3,10 +3,7 @@ import os
 import re
 import shutil
 import hashlib
-import time
 import uuid
-import logging
-import threading
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Optional, Dict, Any
@@ -33,10 +30,6 @@ except Exception:
 # --- Logging moved to core.logs ---
 from .core.logs import (
     log,
-    eda_logger,
-    model_logger,
-    eda_decision,
-    model_decision,
     setup_json_logging,
 )
 # Initialize JSON structured logging once
@@ -44,45 +37,15 @@ setup_json_logging()
 
 # --- Config moved to core.config ---
 from .core.config import (
-    ROOT,
-    DATA_DIR,
     JOBS_DIR,
     MAX_UPLOAD_MB,
     ALLOWED_EXTS,
-    LARGE_FILE_MB,
-    BLEND_DELTA,
-    EARLY_STOP_SAMPLE,
-    HGB_MIN_ROWS,
-    CALIBRATE_ENABLED,
-    CV_FOLDS,
-    PDP_TOP_NUM,
-    SEARCH_TIME_BUDGET,
-    SHAP_ENABLED,
-    SHAP_MAX_ROWS,
-    REPORT_PRIMARY,
-    REPORT_ACCENT,
-    REPORT_BG,
-    REPORT_SURFACE,
-    REPORT_TEXT,
-    REPORT_MUTED,
-    REPORT_OK,
-    REPORT_WARN,
-    REPORT_ERROR,
-    REPORT_FONT_FAMILY,
-    REPORT_LOGO_URL,
 )
 
 # Modularized imports
-from .agent.router import build_context_pack, plan_with_router
-from .reporting.report import reporting_expert
 
 # Lazy-import run_modeling within _run_pipeline to avoid import-time dependency failures
 from .eda.eda import (
-    compute_eda,
-    compute_target_relations,
-    compute_timeseries_hints,
-    load_dataframe,
-    load_sampled_chunked_csv,
     infer_format,
     detect_delimiter,
 )
@@ -226,8 +189,6 @@ def _sha256_of_file(path: Path) -> str:
 
 
 # --- Data loading & EDA helpers moved to app.eda.eda ---
-from pandas.api import types as ptypes
-from collections import Counter
 
 # --- Transformers moved to app.modeling.transformers ---
 # All EDA, router, and reporting helpers have been modularized into app.eda.eda, app.agent.router, and app.reporting.report.

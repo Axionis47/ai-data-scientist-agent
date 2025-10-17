@@ -1,6 +1,6 @@
 from fastapi.testclient import TestClient
 from pathlib import Path
-from app.main import app, JOBS_DIR
+from app.main import app
 
 
 def test_analyze_rejects_outside_jobs_dir(tmp_path: Path):

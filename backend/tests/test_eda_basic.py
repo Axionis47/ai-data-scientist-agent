@@ -1,4 +1,3 @@
-import json
 from pathlib import Path
 import pandas as pd
 
@@ -33,7 +32,6 @@ def test_target_relations(tmp_path: Path):
 
 def test_timeseries_hints(tmp_path: Path):
     import pandas as pd
-    import numpy as np
     base = pd.to_datetime('2024-01-01')
     dates = pd.date_range(base, periods=40, freq='D')
     df = pd.DataFrame({'ds': dates, 'y': list(range(40))})

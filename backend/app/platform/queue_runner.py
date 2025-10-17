@@ -1,10 +1,9 @@
 from __future__ import annotations
 import threading
 import time
-from typing import Dict, Any, Optional, Callable
+from typing import Dict, Any, Callable
 
 from .jobqueue import get_job_queue
-from .jobstore import get_job_store
 
 
 # Simple concurrency limiter wrapper around LocalThreadQueue handler

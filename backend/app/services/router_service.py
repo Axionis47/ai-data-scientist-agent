@@ -2,7 +2,6 @@
 
 Stable entry points for planning and decision routing.
 """
-from typing import Any, Dict
 
 from ..agent.router import build_context_pack, plan_with_router  # re-export
 
