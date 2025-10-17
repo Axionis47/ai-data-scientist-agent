@@ -47,11 +47,11 @@ from .core.config import (
 
 # Lazy-import run_modeling within _run_pipeline to avoid import-time dependency failures
 from .eda.eda import (
-    compute_eda,
-    compute_target_relations,
-    compute_timeseries_hints,
-    load_dataframe,
-    load_sampled_chunked_csv,
+    compute_eda,  # noqa: F401 - re-exported for tests
+    compute_target_relations,  # noqa: F401 - re-exported for tests
+    compute_timeseries_hints,  # noqa: F401 - re-exported for tests
+    load_dataframe,  # noqa: F401 - re-exported for tests
+    load_sampled_chunked_csv,  # noqa: F401 - re-exported for tests
     infer_format,
     detect_delimiter,
 )
