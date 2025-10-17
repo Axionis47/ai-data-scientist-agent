@@ -73,9 +73,8 @@ def build_reproducibility(
     # Dataset fingerprint (best-effort)
     ds = {}
     try:
-        dspath = (
-            Path(manifest.get("dataset_path")) if manifest.get("dataset_path") else None
-        )
+        dataset_path = manifest.get("dataset_path")
+        dspath = Path(dataset_path) if dataset_path else None
         if dspath and dspath.exists():
             ds = _file_fingerprint(dspath)
             ds["path_basename"] = dspath.name

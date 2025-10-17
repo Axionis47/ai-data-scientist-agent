@@ -168,7 +168,8 @@ def split_categorical_by_cardinality(
     low, high = [], []
     for c in cat_cols:
         try:
-            u = int(nunique.get(c)) if c in nunique else None
+            nunique_val = nunique.get(c)
+            u = int(nunique_val) if nunique_val is not None else None
         except Exception:
             u = None
         if u is None:

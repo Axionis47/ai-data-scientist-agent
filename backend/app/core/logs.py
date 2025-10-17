@@ -86,7 +86,7 @@ def eda_decision(
     duration_ms: int | None = None,
 ):
     try:
-        extra = {}
+        extra: Dict[str, Any] = {}
         if stage:
             extra["stage"] = stage
         if duration_ms is not None:
@@ -109,7 +109,7 @@ def model_decision(
     duration_ms: int | None = None,
 ):
     try:
-        extra = {}
+        extra: Dict[str, Any] = {}
         if stage:
             extra["stage"] = stage
         if duration_ms is not None:

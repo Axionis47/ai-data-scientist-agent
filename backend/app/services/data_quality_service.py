@@ -250,7 +250,10 @@ def data_quality_report(
             "Using time-based split; ensure features do not include future information relative to the split."
         )
 
-    summary = "; ".join(sorted(set([i.get("id") for i in issues]))) or "OK"
+    issue_ids: list[str] = [
+        str(i.get("id")) for i in issues if i.get("id") is not None
+    ]
+    summary = "; ".join(sorted(set(issue_ids))) or "OK"
     return {"issues": issues, "recommendations": recs, "summary": summary}
 
 
