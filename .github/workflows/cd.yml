@@ -3,35 +3,126 @@ name: CD
 on:
   push:
     branches: [ main ]
-    tags: ['v*.*.*']
+  workflow_dispatch:  # Allow manual triggers
+
+env:
+  REGION: us-central1
+  ARTIFACT_REGISTRY: us-central1-docker.pkg.dev/plotpointe/botds
 
 jobs:
-  build-and-push:
+  deploy:
+    name: Deploy to Production
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write  # Required for Workload Identity
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/login-action@v3
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev
+
       - name: Build and push backend image
-        uses: docker/build-push-action@v6
-        with:
-          context: ./backend
-          file: ./backend/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/backend:latest
-            ghcr.io/${{ github.repository }}/backend:${{ github.sha }}
-      - name: Trivy vulnerability scan (image)
+        run: |
+          docker build --platform linux/amd64 \
+            -t ${{ env.ARTIFACT_REGISTRY }}/backend:${{ github.sha }} \
+            -t ${{ env.ARTIFACT_REGISTRY }}/backend:latest \
+            ./backend
+          docker push ${{ env.ARTIFACT_REGISTRY }}/backend:${{ github.sha }}
+          docker push ${{ env.ARTIFACT_REGISTRY }}/backend:latest
+
+      - name: Build and push frontend image
+        run: |
+          docker build --platform linux/amd64 \
+            -t ${{ env.ARTIFACT_REGISTRY }}/frontend:${{ github.sha }} \
+            -t ${{ env.ARTIFACT_REGISTRY }}/frontend:latest \
+            ./frontend
+          docker push ${{ env.ARTIFACT_REGISTRY }}/frontend:${{ github.sha }}
+          docker push ${{ env.ARTIFACT_REGISTRY }}/frontend:latest
+
+      - name: Deploy backend to Cloud Run
+        run: |
+          gcloud run deploy botds-backend \
+            --image ${{ env.ARTIFACT_REGISTRY }}/backend:${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --service-account botds-cloud-run-prod@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --set-secrets "OPENAI_API_KEY=botds-openai-api-key-prod:latest" \
+            --set-env-vars "MAX_CONCURRENT_JOBS=2,EDA_TIMEOUT_S=300,MODEL_TIMEOUT_S=600,REPORT_TIMEOUT_S=300,REPORT_JSON_FIRST=true" \
+            --memory 2Gi \
+            --cpu 2 \
+            --timeout 900 \
+            --max-instances 10 \
+            --min-instances 0 \
+            --port 8000
+
+      - name: Get backend URL
+        id: backend-url
+        run: |
+          BACKEND_URL=$(gcloud run services describe botds-backend \
+            --region ${{ env.REGION }} \
+            --format 'value(status.url)')
+          echo "url=$BACKEND_URL" >> $GITHUB_OUTPUT
+          echo "Backend URL: $BACKEND_URL"
+
+      - name: Deploy frontend to Cloud Run
+        run: |
+          gcloud run deploy botds-frontend \
+            --image ${{ env.ARTIFACT_REGISTRY }}/frontend:${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --service-account botds-cloud-run-prod@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --set-env-vars "NEXT_PUBLIC_API_URL=${{ steps.backend-url.outputs.url }}" \
+            --memory 512Mi \
+            --cpu 1 \
+            --timeout 300 \
+            --max-instances 10 \
+            --min-instances 0 \
+            --port 3000
+
+      - name: Get frontend URL
+        id: frontend-url
+        run: |
+          FRONTEND_URL=$(gcloud run services describe botds-frontend \
+            --region ${{ env.REGION }} \
+            --format 'value(status.url)')
+          echo "url=$FRONTEND_URL" >> $GITHUB_OUTPUT
+          echo "Frontend URL: $FRONTEND_URL"
+
+      - name: Update backend CORS
+        run: |
+          gcloud run services update botds-backend \
+            --region ${{ env.REGION }} \
+            --update-env-vars "ALLOWED_ORIGINS=http://localhost:3000,${{ steps.frontend-url.outputs.url }}"
+
+      - name: Verify deployment
+        run: |
+          echo "🎉 Deployment complete!"
+          echo "Backend: ${{ steps.backend-url.outputs.url }}"
+          echo "Frontend: ${{ steps.frontend-url.outputs.url }}"
+
+          # Test backend health
+          curl -f ${{ steps.backend-url.outputs.url }}/health || exit 1
+          echo "✅ Backend health check passed"
+
+      - name: Security scan with Trivy
         uses: aquasecurity/trivy-action@0.20.0
         with:
-          image-ref: ghcr.io/${{ github.repository }}/backend:latest
+          image-ref: ${{ env.ARTIFACT_REGISTRY }}/backend:${{ github.sha }}
           format: 'table'
           exit-code: '0'
 
