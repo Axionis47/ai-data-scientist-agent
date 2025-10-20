@@ -107,7 +107,7 @@ jobs:
         run: |
           gcloud run services update botds-backend \
             --region ${{ env.REGION }} \
-            --update-env-vars "ALLOWED_ORIGINS=http://localhost:3000,${{ steps.frontend-url.outputs.url }}"
+            --set-env-vars "MAX_CONCURRENT_JOBS=2,EDA_TIMEOUT_S=300,MODEL_TIMEOUT_S=600,REPORT_TIMEOUT_S=300,REPORT_JSON_FIRST=true,ALLOWED_ORIGINS=http://localhost:3000,${{ steps.frontend-url.outputs.url }}"
 
       - name: Verify deployment
         run: |
