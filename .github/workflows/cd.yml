@@ -106,9 +106,12 @@ jobs:
       - name: Update backend CORS
         run: |
           FRONTEND_URL="${{ steps.frontend-url.outputs.url }}"
+          cat > env-vars.yaml <<EOF
+          ALLOWED_ORIGINS: "http://localhost:3000,${FRONTEND_URL}"
+          EOF
           gcloud run services update botds-backend \
             --region ${{ env.REGION }} \
-            --update-env-vars "^:^ALLOWED_ORIGINS=http://localhost:3000,${FRONTEND_URL}"
+            --update-env-vars env-vars.yaml
 
       - name: Verify deployment
         run: |
