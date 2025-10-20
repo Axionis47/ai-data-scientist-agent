@@ -105,9 +105,10 @@ jobs:
 
       - name: Update backend CORS
         run: |
+          FRONTEND_URL="${{ steps.frontend-url.outputs.url }}"
           gcloud run services update botds-backend \
             --region ${{ env.REGION }} \
-            --set-env-vars "MAX_CONCURRENT_JOBS=2,EDA_TIMEOUT_S=300,MODEL_TIMEOUT_S=600,REPORT_TIMEOUT_S=300,REPORT_JSON_FIRST=true,ALLOWED_ORIGINS=http://localhost:3000,${{ steps.frontend-url.outputs.url }}"
+            --update-env-vars ALLOWED_ORIGINS="http://localhost:3000,${FRONTEND_URL}"
 
       - name: Verify deployment
         run: |
