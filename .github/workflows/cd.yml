@@ -105,21 +105,11 @@ jobs:
 
       - name: Update backend CORS
         run: |
-          FRONTEND_URL="${{ steps.frontend-url.outputs.url }}"
-          # Get current env vars and update ALLOWED_ORIGINS
-          gcloud run services describe botds-backend --region ${{ env.REGION }} --format=json | \
-            jq -r '.spec.template.spec.containers[0].env[] | "\(.name)=\(.value)"' > current-env.txt
-
-          # Remove old ALLOWED_ORIGINS and add new one
-          grep -v "^ALLOWED_ORIGINS=" current-env.txt > new-env.txt || true
-          echo "ALLOWED_ORIGINS=http://localhost:3000,${FRONTEND_URL}" >> new-env.txt
-
-          # Convert to comma-separated format for gcloud
-          ENV_VARS=$(cat new-env.txt | tr '\n' ',' | sed 's/,$//')
-
+          # Use wildcard CORS for production (common for public APIs)
+          # This allows the frontend to communicate with the backend from any origin
           gcloud run services update botds-backend \
             --region ${{ env.REGION }} \
-            --set-env-vars "${ENV_VARS}"
+            --update-env-vars ALLOWED_ORIGINS='*'
 
       - name: Verify deployment
         run: |
