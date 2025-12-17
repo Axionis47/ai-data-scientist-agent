@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 """Modeling pipeline: trains simple candidates, evaluates, and produces explainability outputs.
 
@@ -13,8 +13,9 @@ import numpy as np
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import OneHotEncoder
+from sklearn.preprocessing import OneHotEncoder, StandardScaler, RobustScaler
 from sklearn.impute import SimpleImputer
+from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.linear_model import LogisticRegression, LinearRegression
 from sklearn.ensemble import (
     RandomForestClassifier,
@@ -52,7 +53,60 @@ from ..core.config import (
     SEARCH_TIME_BUDGET,
     CALIBRATE_ENABLED,
 )
+from sklearn.neural_network import MLPClassifier, MLPRegressor
 from ..services.evaluation_service import compute_binary_metrics
+
+# Try to import XGBoost (optional dependency)
+try:
+    from xgboost import XGBClassifier, XGBRegressor
+    XGBOOST_AVAILABLE = True
+except ImportError:
+    XGBOOST_AVAILABLE = False
+
+# Neural network support flag (can be disabled via config)
+MLP_ENABLED = True
+
+
+class SafeVarianceThreshold(BaseEstimator, TransformerMixin):
+    """VarianceThreshold that falls back to passthrough if all features would be removed."""
+
+    def __init__(self, threshold=0.01):
+        self.threshold = threshold
+        self._selector = None
+        self._passthrough = False
+
+    def fit(self, X, y=None):
+        self._selector = VarianceThreshold(threshold=self.threshold)
+        try:
+            self._selector.fit(X)
+            # Check if any features would remain
+            if self._selector.get_support().sum() == 0:
+                self._passthrough = True
+            else:
+                self._passthrough = False
+        except Exception:
+            self._passthrough = True
+        return self
+
+    def transform(self, X):
+        if self._passthrough:
+            return X
+        try:
+            result = self._selector.transform(X)
+            # Double-check we have features
+            if result.shape[1] == 0:
+                return X
+            return result
+        except Exception:
+            return X
+
+    def get_support(self, indices=False):
+        if self._passthrough:
+            n_features = getattr(self, '_n_features_in_', None)
+            if n_features:
+                return np.arange(n_features) if indices else np.ones(n_features, dtype=bool)
+            return np.array([])
+        return self._selector.get_support(indices=indices)
 
 
 # Minimal TopK encoder (copied from main to avoid deep deps)
@@ -61,20 +115,28 @@ class TopKCategorical:
         self.cols = cols
         self.k = k
         self.keep_: Dict[str, set] = {}
+        self._fitted_cols_: List[str] = []
 
     def fit(self, X, y=None):
-        df = pd.DataFrame(X).copy() if not isinstance(X, pd.DataFrame) else X
-        cols = self.cols or list(df.columns)
+        df = pd.DataFrame(X).copy() if not isinstance(X, pd.DataFrame) else X.copy()
+        # Store the actual columns we're fitting on (may differ from self.cols if X is numpy array)
+        self._fitted_cols_ = list(df.columns)
+        cols = self.cols or self._fitted_cols_
         for c in cols:
-            vc = df[c].astype(str).value_counts()
-            self.keep_[c] = set(vc.head(self.k).index.tolist())
+            if c in df.columns:
+                vc = df[c].astype(str).value_counts()
+                self.keep_[c] = set(vc.head(self.k).index.tolist())
         return self
 
     def transform(self, X):
-        df = pd.DataFrame(X).copy() if not isinstance(X, pd.DataFrame) else X
-        for c in self.cols or list(df.columns):
-            df[c] = df[c].astype(str)
-            df[c] = df[c].where(df[c].isin(self.keep_.get(c, set())), other="__OTHER__")
+        df = pd.DataFrame(X).copy() if not isinstance(X, pd.DataFrame) else X.copy()
+        # Handle case where X is numpy array (columns are 0, 1, 2, ...)
+        # Map positional indices to original column names if needed
+        cols_to_transform = self.cols or self._fitted_cols_
+        for c in cols_to_transform:
+            if c in df.columns:
+                df[c] = df[c].astype(str)
+                df[c] = df[c].where(df[c].isin(self.keep_.get(c, set())), other="__OTHER__")
         return df
 
 
@@ -101,13 +163,10 @@ class FittedEnsemble:
                     continue
         if not probs:
             raise AttributeError("No member provides predict_proba")
-        import numpy as np
 
         return np.vstack([1 - np.mean(probs, axis=0), np.mean(probs, axis=0)]).T
 
     def predict(self, X):
-        import numpy as np
-
         if self.task == "binary":
             # Try soft voting
             if any(hasattr(m, "predict_proba") for m in self.members.values()):
@@ -153,8 +212,6 @@ class StackingEnsemble:
         self.task = task
 
     def _make_features(self, X):
-        import numpy as np
-
         feats = []
         for m in self.members.values():
             if self.task == "binary":
@@ -172,7 +229,6 @@ class StackingEnsemble:
     def predict_proba(self, X):
         if self.task != "binary":
             raise AttributeError("predict_proba only for binary task")
-        import numpy as np
 
         Z = self._make_features(X)
         if hasattr(self.meta, "predict_proba"):
@@ -221,6 +277,8 @@ def quick_search(
             grid = {"est__max_depth": [None, 6, 12], "est__learning_rate": [0.05, 0.1]}
         elif name.startswith("logreg"):
             grid = {"est__C": [0.5, 1.0, 2.0]}
+        elif name.startswith("xgb"):
+            grid = {"est__max_depth": [4, 6, 8], "est__learning_rate": [0.05, 0.1, 0.2]}
         else:
             grid = {}
         if not grid:
@@ -268,6 +326,25 @@ def run_modeling(
     y = df[target]
     X = df.drop(columns=[target])
 
+    # Drop identifier columns (high-cardinality unique columns that would cause issues)
+    # SAFEGUARD: Never drop ALL feature columns - always keep at least some features
+    try:
+        from ..services.data_quality_service import detect_identifier_columns
+        nunique_map = eda.get("nunique") or {}
+        id_cols = detect_identifier_columns(X, nunique_map)
+        if id_cols:
+            # Calculate how many columns would remain after dropping
+            remaining_cols = [c for c in X.columns if c not in id_cols]
+            if len(remaining_cols) >= 1:
+                # Safe to drop - we'll have at least 1 feature left
+                X = X.drop(columns=[c for c in id_cols if c in X.columns], errors="ignore")
+                model_decision(job_id, f"Dropped identifier columns: {id_cols}")
+            else:
+                # Would drop ALL columns - skip dropping and log warning
+                model_decision(job_id, f"SKIPPED dropping identifier columns {id_cols} - would leave 0 features. Keeping all columns.")
+    except Exception as e:
+        model_decision(job_id, f"Identifier column detection failed: {e}")
+
     # Columns
     num_cols = [c for c in X.columns if ptypes.is_numeric_dtype(X[c])]
     from pandas.api.types import CategoricalDtype
@@ -289,6 +366,36 @@ def run_modeling(
     # Class weight support for classifiers
     class_weight = str(decisions.get("class_weight") or "").lower()
     class_weight = "balanced" if class_weight in ("balanced", "auto") else None
+
+    # Auto-detect class imbalance and apply balanced weights if not specified
+    # Use y directly since it's already defined above
+    try:
+        if y.nunique(dropna=True) <= 10:  # Classification
+            vc = y.value_counts(normalize=True)
+            imbalance_ratio = vc.max() / max(vc.min(), 0.001)
+            if imbalance_ratio > 3 and class_weight is None:  # More than 3:1 imbalance
+                class_weight = "balanced"
+                model_decision(job_id, f"Auto-detected class imbalance (ratio={imbalance_ratio:.1f}), using balanced class weights")
+    except Exception:
+        pass
+
+    # For regression: detect and handle extreme outliers in target
+    # Use IQR-based clipping to reduce impact of extreme outliers
+    is_regression_task = ptypes.is_numeric_dtype(y) and y.nunique(dropna=True) > 10
+    if is_regression_task:
+        try:
+            q1, q3 = y.quantile(0.25), y.quantile(0.75)
+            iqr = q3 - q1
+            lower_bound = q1 - 3 * iqr  # 3x IQR is very conservative
+            upper_bound = q3 + 3 * iqr
+            outlier_count = ((y < lower_bound) | (y > upper_bound)).sum()
+            if outlier_count > 0:
+                # Clip extreme outliers instead of removing them
+                y = y.clip(lower=lower_bound, upper=upper_bound)
+                model_decision(job_id, f"Clipped {outlier_count} extreme outliers in target (bounds: [{lower_bound:.2f}, {upper_bound:.2f}])")
+        except Exception:
+            pass
+
     # Split strategy (prefer time-based if requested or time columns exist)
     split_pref = str(decisions.get("split") or "").lower()
     time_cols = eda.get("time_columns") or eda.get("time_like_candidates") or []
@@ -390,18 +497,22 @@ def run_modeling(
     except Exception:
         pass
 
-    linear_sel_steps = [("var", VarianceThreshold(0.01))]
+    # Use SafeVarianceThreshold to avoid dropping all features + StandardScaler for linear models
+    linear_sel_steps = [
+        ("var", SafeVarianceThreshold(0.01)),
+        ("scale", StandardScaler()),  # Scale features to prevent overflow in linear models
+    ]
     if use_mi:
         if is_class:
             linear_sel_steps.append(("mi", SelectKBest(mutual_info_classif, k=50)))
         else:
             linear_sel_steps.append(("mi", SelectKBest(mutual_info_regression, k=50)))
         model_decision(
-            job_id, "Feature selection: SelectKBest top=50 for linear models"
+            job_id, "Feature selection: SafeVarianceThreshold + StandardScaler + SelectKBest for linear models"
         )
     else:
         model_decision(
-            job_id, "Feature selection: VarianceThreshold(0.01) only for linear models"
+            job_id, "Feature selection: SafeVarianceThreshold + StandardScaler for linear models"
         )
 
     # Candidates
@@ -415,7 +526,7 @@ def run_modeling(
                     + [
                         (
                             "est",
-                            LogisticRegression(max_iter=200, class_weight=class_weight),
+                            LogisticRegression(max_iter=500, class_weight=class_weight, solver='lbfgs'),
                         )
                     ]
                 ),
@@ -444,12 +555,65 @@ def run_modeling(
                 ),
             ),
         ]
+        # Add XGBoost if available
+        if XGBOOST_AVAILABLE:
+            # Calculate scale_pos_weight for imbalanced data
+            try:
+                pos_count = (y == 1).sum() if is_binary else 1
+                neg_count = (y == 0).sum() if is_binary else 1
+                scale_pos_weight = neg_count / max(pos_count, 1) if is_binary else 1
+            except Exception:
+                scale_pos_weight = 1
+            cands.append((
+                "xgb_clf",
+                Pipeline(
+                    [
+                        ("prep", pre),
+                        ("est", XGBClassifier(
+                            n_estimators=200,
+                            max_depth=6,
+                            learning_rate=0.1,
+                            scale_pos_weight=scale_pos_weight if is_binary else 1,
+                            random_state=42,
+                            n_jobs=-1,
+                            eval_metric='logloss',
+                        )),
+                    ]
+                ),
+            ))
+            model_decision(job_id, f"Added XGBoost classifier (scale_pos_weight={scale_pos_weight:.2f})")
+
+        # Add MLP (neural network) classifier if enabled and dataset is large enough
+        if MLP_ENABLED and n_rows >= 500:
+            cands.append((
+                "mlp_clf",
+                Pipeline(
+                    [("prep", pre)]
+                    + linear_sel_steps  # MLP benefits from scaling
+                    + [("est", MLPClassifier(
+                        hidden_layer_sizes=(100, 50),
+                        max_iter=500,
+                        early_stopping=True,
+                        validation_fraction=0.1,
+                        random_state=42,
+                    ))]
+                ),
+            ))
+            model_decision(job_id, "Added MLP classifier (neural network)")
     else:
+        # Regression: use RobustScaler to handle outliers
+        regression_linear_steps = [
+            ("var", SafeVarianceThreshold(0.01)),
+            ("scale", RobustScaler()),  # Robust to outliers
+        ]
+        if use_mi:
+            regression_linear_steps.append(("mi", SelectKBest(mutual_info_regression, k=50)))
+
         cands = [
             (
                 "linreg",
                 Pipeline(
-                    [("prep", pre)] + linear_sel_steps + [("est", LinearRegression())]
+                    [("prep", pre)] + regression_linear_steps + [("est", LinearRegression())]
                 ),
             ),
             (
@@ -471,6 +635,42 @@ def run_modeling(
                 ),
             ),
         ]
+        # Add XGBoost regressor if available
+        if XGBOOST_AVAILABLE:
+            cands.append((
+                "xgb_reg",
+                Pipeline(
+                    [
+                        ("prep", pre),
+                        ("est", XGBRegressor(
+                            n_estimators=200,
+                            max_depth=6,
+                            learning_rate=0.1,
+                            random_state=42,
+                            n_jobs=-1,
+                        )),
+                    ]
+                ),
+            ))
+            model_decision(job_id, "Added XGBoost regressor")
+
+        # Add MLP (neural network) regressor if enabled and dataset is large enough
+        if MLP_ENABLED and n_rows >= 500:
+            cands.append((
+                "mlp_reg",
+                Pipeline(
+                    [("prep", pre)]
+                    + regression_linear_steps  # MLP benefits from scaling
+                    + [("est", MLPRegressor(
+                        hidden_layer_sizes=(100, 50),
+                        max_iter=500,
+                        early_stopping=True,
+                        validation_fraction=0.1,
+                        random_state=42,
+                    ))]
+                ),
+            ))
+            model_decision(job_id, "Added MLP regressor (neural network)")
 
     # Intelligent gating
     gated = []
@@ -527,8 +727,11 @@ def run_modeling(
             scoring_str = "roc_auc"
         elif is_binary and desired_metric in ("pr_auc", "ap", "average_precision"):
             scoring_str = "average_precision"
+        elif desired_metric in ("accuracy", "acc"):
+            scoring_str = "accuracy"
         else:
-            scoring_str = "accuracy" if desired_metric in ("accuracy", "acc") else "f1"
+            # Use f1 for binary, f1_weighted for multiclass
+            scoring_str = "f1" if is_binary else "f1_weighted"
     else:
         scoring_str = "r2"
     # Choose safe CV folds for tiny datasets; prefer time-series CV when time split is in effect
@@ -636,11 +839,13 @@ def run_modeling(
                 pipe.fit(Xtr.iloc[tr_idx], ytr.iloc[tr_idx])
                 preds_cv = pipe.predict(Xtr.iloc[va_idx])
                 if is_class:
-                    s = (
-                        accuracy_score(ytr.iloc[va_idx], preds_cv)
-                        if scoring_str == "accuracy"
-                        else f1_score(ytr.iloc[va_idx], preds_cv)
-                    )
+                    if scoring_str == "accuracy":
+                        s = accuracy_score(ytr.iloc[va_idx], preds_cv)
+                    elif is_binary:
+                        s = f1_score(ytr.iloc[va_idx], preds_cv)
+                    else:
+                        # Multiclass: use weighted average
+                        s = f1_score(ytr.iloc[va_idx], preds_cv, average="weighted")
                 else:
                     s = r2_score(ytr.iloc[va_idx], preds_cv)
                 scores.append(s)
@@ -775,7 +980,6 @@ def run_modeling(
                 if m.get("name") in fitted and m.get("name") != "ensemble"
             ]
             if len(top_names) >= 2:
-                import numpy as np
                 from sklearn.base import clone
 
                 # Build OOF predictions matrix for training meta
@@ -963,8 +1167,6 @@ def run_modeling(
                         probas.append(p)
                         used.append(n)
                 if len(probas) >= 2:
-                    import numpy as np
-
                     proba_ens = np.mean(np.vstack(probas), axis=0)
                     preds_ens = (proba_ens >= 0.5).astype(int)
                     metrics = compute_binary_metrics(yte, proba_ens, preds_ens)
@@ -997,8 +1199,6 @@ def run_modeling(
                     except Exception:
                         pass
                 if len(preds_list) >= 2:
-                    import numpy as np
-
                     preds_ens = np.mean(np.vstack(preds_list), axis=0)
                     r2 = r2_score(yte, preds_ens)
                     try:
@@ -1154,9 +1354,7 @@ def run_modeling(
 
             def _to_py(v):
                 try:
-                    import numpy as _np
-
-                    if isinstance(v, _np.generic):
+                    if isinstance(v, np.generic):
                         return v.item()
                 except Exception:
                     pass

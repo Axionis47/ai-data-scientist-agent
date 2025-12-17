@@ -81,3 +81,16 @@ REPORT_INLINE_ASSETS = os.getenv("REPORT_INLINE_ASSETS", "false").lower() in (
 LOOP_MAX_ROUNDS = int(os.getenv("LOOP_MAX_ROUNDS", "0"))
 LOOP_MIN_DELTA = float(os.getenv("LOOP_MIN_DELTA", "0.005"))
 LOOP_TIME_BUDGET_S = int(os.getenv("LOOP_TIME_BUDGET_S", "0"))
+
+# LLM Provider Configuration
+# Options: "auto", "vertex", "openai"
+# "auto" tries Vertex AI first, then OpenAI
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "auto")
+
+# Vertex AI (Gemini) settings
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", os.getenv("GOOGLE_CLOUD_PROJECT", "plotpointe"))
+GCP_LOCATION = os.getenv("GCP_LOCATION", "us-central1")
+VERTEX_MODEL = os.getenv("VERTEX_MODEL", "gemini-1.5-flash")
+
+# OpenAI settings (legacy)
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")

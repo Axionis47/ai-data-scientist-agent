@@ -4,7 +4,7 @@ import json
 
 Key function: reporting_expert(job_id, eda, modeling, explain) -> HTML
 - JSON-first: requests structured JSON, validates shape, renders deterministic HTML
-- HTML via LLM: prompts for clean inline-CSS HTML when OpenAI is configured
+- HTML via LLM: prompts for clean inline-CSS HTML when LLM provider is configured
 - Fallback: no-LLM deterministic HTML; now includes model card, risks/caveats, and anchor sections
 - Extras: _inline_img for optional base64 inlining; _span for OTEL spans
 """
@@ -12,6 +12,7 @@ Key function: reporting_expert(job_id, eda, modeling, explain) -> HTML
 import os
 from typing import Dict, Any
 from ..core.logs import model_decision
+from ..core.llm import get_llm_client
 from ..core.config import (
     REPORT_PRIMARY,
     REPORT_ACCENT,
@@ -25,11 +26,6 @@ from ..core.config import (
     REPORT_FONT_FAMILY,
     REPORT_LOGO_URL,
 )
-
-try:
-    from openai import OpenAI  # type: ignore
-except Exception:  # pragma: no cover - optional dependency for CI
-    OpenAI = None  # type: ignore
 
 import base64
 import pathlib
@@ -271,55 +267,208 @@ def _fallback_report_html(
     """
 
 
+def _build_enriched_report_context(
+    job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any], explain: Dict[str, Any], manifest: Dict[str, Any] = None
+) -> Dict[str, Any]:
+    """Build enriched context for LLM report generation with comprehensive insights."""
+    manifest = manifest or {}
+    best = modeling.get("best") or {}
+    task = modeling.get("task")
+
+    # Dataset summary
+    shape = eda.get("shape") or {}
+    missing = eda.get("missing") or {}
+    high_missing = [(k, round(v.get("pct", 0), 1)) for k, v in missing.items() if v.get("pct", 0) > 5]
+
+    # Column type breakdown
+    dtypes = eda.get("dtypes") or {}
+    numeric_cols = [k for k, v in dtypes.items() if "float" in v or "int" in v]
+    categorical_cols = [k for k, v in dtypes.items() if "object" in v or "category" in v]
+
+    # Feature importances (top 10) with formatting
+    importances = explain.get("importances") or []
+    if isinstance(importances, list):
+        top_features = [
+            {"feature": f.get("feature") or f.get("name"), "importance": round(f.get("importance") or f.get("score", 0), 4)}
+            for f in importances[:10]
+            if isinstance(f, dict)
+        ]
+    else:
+        top_features = []
+
+    # Leaderboard comparison with scores
+    leaderboard = modeling.get("leaderboard") or []
+    model_comparison = [
+        {
+            "rank": i + 1,
+            "name": m.get("name"),
+            "f1": round(m.get("f1", 0), 3) if m.get("f1") else None,
+            "accuracy": round(m.get("acc", 0), 3) if m.get("acc") else None,
+            "cv_mean": round(m.get("cv_mean", 0), 3) if m.get("cv_mean") else None,
+        }
+        for i, m in enumerate(leaderboard[:5])
+    ]
+
+    # Confusion matrix summary (if available)
+    confusion_matrix = None
+    cm = explain.get("confusion_matrix") or modeling.get("confusion_matrix")
+    if cm and isinstance(cm, (list, dict)):
+        confusion_matrix = cm
+
+    # Class distribution (for classification)
+    class_distribution = None
+    target_dist = eda.get("target_distribution")
+    if target_dist:
+        class_distribution = target_dist
+    elif task == "classification":
+        # Try to infer from modeling notes
+        notes = modeling.get("notes") or []
+        for note in notes:
+            if "imbalance" in str(note).lower():
+                class_distribution = {"note": note}
+                break
+
+    # Top correlations
+    top_correlations = eda.get("top_correlations") or []
+    correlation_insights = [
+        {"pair": f"{c[0]} ↔ {c[1]}", "correlation": round(c[2], 3)}
+        for c in top_correlations[:5]
+        if len(c) >= 3
+    ]
+
+    # Data quality issues and recommendations
+    recommendations = eda.get("recommendations") or []
+    data_quality = manifest.get("data_quality") or {}
+    dq_issues = data_quality.get("issues") or []
+    quality_summary = {
+        "recommendations": recommendations[:5],
+        "issues": [{"id": i.get("id"), "severity": i.get("severity")} for i in dq_issues[:3]],
+    }
+
+    # Outlier summary
+    outlier_info = None
+    skew = eda.get("skew") or {}
+    if skew:
+        high_skew = [(k, round(v, 2)) for k, v in skew.items() if abs(v) > 2]
+        if high_skew:
+            outlier_info = {"high_skew_features": high_skew[:5], "note": "Features with |skew|>2 may have outliers"}
+
+    # Feature engineering summary
+    fe_info = manifest.get("feature_engineering") or {}
+    fe_summary = None
+    if fe_info:
+        added_features = []
+        for key in ["datetime", "timeseries", "text"]:
+            sub = fe_info.get(key) or {}
+            added = sub.get("added") or []
+            if added:
+                added_features.extend(added[:3])
+        if added_features:
+            fe_summary = {"engineered_features": added_features[:5]}
+
+    # Model training notes
+    model_notes = modeling.get("notes") or []
+
+    return {
+        "job_id": job_id,
+        "dataset": {
+            "rows": shape.get("rows"),
+            "cols": shape.get("cols"),
+            "numeric_features": len(numeric_cols),
+            "categorical_features": len(categorical_cols),
+            "high_missing_cols": high_missing[:5],
+        },
+        "model": {
+            "name": best.get("name"),
+            "task": task,
+            "metrics": {
+                "f1": round(best.get("f1"), 3) if best.get("f1") else None,
+                "accuracy": round(best.get("acc"), 3) if best.get("acc") else None,
+                "roc_auc": round(best.get("roc_auc"), 3) if best.get("roc_auc") else None,
+                "pr_auc": round(best.get("pr_auc"), 3) if best.get("pr_auc") else None,
+                "r2": round(best.get("r2"), 3) if best.get("r2") else None,
+                "rmse": round(best.get("rmse"), 3) if best.get("rmse") else None,
+            },
+            "threshold": round(best.get("thr"), 3) if best.get("thr") else None,
+            "cv_mean": round(best.get("cv_mean"), 3) if best.get("cv_mean") else None,
+            "cv_std": round(best.get("cv_std"), 3) if best.get("cv_std") else None,
+        },
+        "top_features": top_features,
+        "model_comparison": model_comparison,
+        "confusion_matrix": confusion_matrix,
+        "class_distribution": class_distribution,
+        "correlation_insights": correlation_insights,
+        "data_quality": quality_summary,
+        "outlier_info": outlier_info,
+        "feature_engineering": fe_summary,
+        "model_notes": model_notes[:5],
+        "user_question": manifest.get("question"),
+        "business_context": manifest.get("nl_description") or manifest.get("context"),
+        "explain": {
+            "roc": explain.get("roc"),
+            "pr": explain.get("pr"),
+            "pdp": explain.get("pdp")[:3] if explain.get("pdp") else None,  # Limit PDPs
+            "shap": explain.get("shap"),
+        },
+    }
+
+
 def reporting_expert(
-    job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any], explain: Dict[str, Any]
+    job_id: str, eda: Dict[str, Any], modeling: Dict[str, Any], explain: Dict[str, Any], manifest: Dict[str, Any] = None
 ) -> str:
-    api_key = os.getenv("OPENAI_API_KEY")
+    llm_client = get_llm_client()
+    manifest = manifest or {}
 
     # JSON-first path (feature-flagged)
-    if REPORT_JSON_FIRST and api_key and OpenAI is not None:
+    if REPORT_JSON_FIRST and llm_client is not None:
         with _span("report.json_first", {"job_id": job_id, "enabled": True}):
             try:
-                client = OpenAI()
-                jprompt = {
-                    "role": "user",
-                    "content": (
-                        "Return ONLY JSON with keys: title (str), kpis (object of numeric values), "
-                        "sections (array of objects each with heading and either items[] or html string). "
-                        "No markdown, no prose outside JSON. Context:"
-                        + json.dumps(
-                            {
-                                "job_id": job_id,
-                                "kpis": modeling.get("best") or {},
-                                "task": modeling.get("task"),
-                                "notes": (modeling.get("notes") or []),
-                                "explain": {
-                                    "roc": explain.get("roc"),
-                                    "pr": explain.get("pr"),
-                                    "pdp": explain.get("pdp"),
-                                },
-                            }
-                        )[:4000]
-                    ),
-                }
-                rj = client.chat.completions.create(
-                    model="gpt-4o-mini",
-                    messages=[
-                        {
-                            "role": "system",
-                            "content": "You strictly output JSON. No extra text.",
-                        },
-                        jprompt,
-                    ],
-                    temperature=0.1,
-                )
-                raw = rj.choices[0].message.content or "{}"
-                # Best-effort strip code fences
+                enriched_ctx = _build_enriched_report_context(job_id, eda, modeling, explain, manifest)
+
+                system_prompt = """You are an expert data science report writer creating executive summaries for business stakeholders.
+
+Output ONLY valid JSON with this structure:
+{
+  "title": "Clear, descriptive title",
+  "kpis": {"metric_name": numeric_value, ...},
+  "sections": [
+    {"heading": "Section Title", "items": ["bullet point 1", "bullet point 2"]},
+    {"heading": "Another Section", "html": "<p>HTML content</p>"}
+  ]
+}
+
+Guidelines:
+- Write for business stakeholders, not data scientists
+- Explain what metrics mean in business terms
+- Highlight actionable insights
+- Note any data quality concerns that affect reliability
+- Keep bullet points concise but informative"""
+
+                user_prompt = f"""Generate an executive summary report for this ML analysis.
+
+## Required Sections:
+1. **Model Performance Summary** - Key metrics with business interpretation
+2. **Top Predictive Factors** - What drives the predictions (from top_features)
+3. **Model Comparison** - How different models performed (from model_comparison)
+4. **Data Quality Notes** - Any issues that affect reliability
+5. **Business Recommendations** - Actionable next steps based on findings
+
+## Context Data:
+{json.dumps(enriched_ctx, indent=2)[:7000]}
+
+Generate the JSON report now."""
+
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ]
+                raw = llm_client.chat(messages=messages, temperature=0.1, json_mode=True)
+                # Best-effort strip code fences (shouldn't be needed with json_mode)
                 raw = raw.strip().removeprefix("```json").removesuffix("```").strip()
                 obj = json.loads(raw)
                 errs = validate_report_json(obj)
                 if not errs:
-                    model_decision(job_id, "Reporting: JSON-first report validated")
+                    model_decision(job_id, f"Reporting: JSON-first report validated ({llm_client.provider_name})")
                     return _render_from_json(job_id, obj)
                 else:
                     model_decision(
@@ -331,57 +480,65 @@ def reporting_expert(
                     job_id, f"Reporting: JSON-first failed: {e}; falling back"
                 )
 
-    # HTML path (OpenAI or fallback)
-    if not api_key or OpenAI is None:
-        with _span("report.fallback", {"job_id": job_id, "reason": "no_openai"}):
+    # HTML path (LLM or fallback)
+    if llm_client is None:
+        with _span("report.fallback", {"job_id": job_id, "reason": "no_llm"}):
             model_decision(
                 job_id,
-                "Reporting: fallback template used (OpenAI unavailable or no OPENAI_API_KEY)",
+                "Reporting: fallback template used (no LLM provider available)",
             )
             return _fallback_report_html(job_id, eda, modeling, explain)
     try:
         with _span("report.html_llm", {"job_id": job_id}):
-            client = OpenAI()
-            ctx = {
-                "job_id": job_id,
-                "kpis": modeling.get("best") or {},
-                "task": modeling.get("task"),
-                "notes": (modeling.get("notes") or []),
-                "explain": {
-                    "roc": explain.get("roc"),
-                    "pr": explain.get("pr"),
-                    "pdp": explain.get("pdp"),
-                },
-                "brand": {
-                    "primary": REPORT_PRIMARY,
-                    "accent": REPORT_ACCENT,
-                    "bg": REPORT_BG,
-                    "surface": REPORT_SURFACE,
-                    "text": REPORT_TEXT,
-                    "muted": REPORT_MUTED,
-                    "font": REPORT_FONT_FAMILY,
-                    "logo": REPORT_LOGO_URL,
-                },
+            # Use enriched context for better reports
+            enriched_ctx = _build_enriched_report_context(job_id, eda, modeling, explain, manifest)
+            enriched_ctx["brand"] = {
+                "primary": REPORT_PRIMARY,
+                "accent": REPORT_ACCENT,
+                "bg": REPORT_BG,
+                "surface": REPORT_SURFACE,
+                "text": REPORT_TEXT,
+                "muted": REPORT_MUTED,
+                "font": REPORT_FONT_FAMILY,
+                "logo": REPORT_LOGO_URL,
             }
-            prompt = {
-                "role": "user",
-                "content": f"Generate clean, self-contained HTML with inline CSS for an executive summary. Use brand tokens if provided. Include headings, KPIs, bullets, and embed ROC/PR images if present. Context: {json.dumps(ctx)[:4000]}",
-            }
-            r = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {
-                        "role": "system",
-                        "content": "You are a precise, reliable report writer. Return HTML only.",
-                    },
-                    prompt,
-                ],
-                temperature=0.2,
-            )
-            html = r.choices[0].message.content or ""
+
+            system_prompt = """You are an expert data science report writer creating executive summaries.
+
+Return ONLY clean, self-contained HTML with inline CSS. No markdown, no code blocks.
+
+Structure your report with these sections:
+1. Header with title and key metrics
+2. Model Performance (with interpretation)
+3. Top Predictive Factors (from feature importances)
+4. Model Comparison table (if multiple models)
+5. Data Quality Notes (any concerns)
+6. Business Recommendations (actionable insights)
+
+Use the brand tokens for colors and fonts. Keep it professional and concise."""
+
+            user_prompt = f"""Generate an executive summary HTML report.
+
+## Brand Tokens:
+- Primary color: {REPORT_PRIMARY}
+- Accent color: {REPORT_ACCENT}
+- Background: {REPORT_BG}
+- Text: {REPORT_TEXT}
+- Font: {REPORT_FONT_FAMILY}
+
+## Analysis Results:
+{json.dumps(enriched_ctx, indent=2)[:7000]}
+
+Generate the HTML report now. Start with <div> or <html>."""
+
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ]
+            html = llm_client.chat(messages=messages, temperature=0.2)
             if "<html" not in html and "<div" not in html:
-                raise ValueError("router returned non-HTML")
-            model_decision(job_id, "Reporting: generated via OpenAI")
+                raise ValueError("LLM returned non-HTML")
+            model_decision(job_id, f"Reporting: generated via {llm_client.provider_name}")
             return html
     except Exception as e:
         with _span(

@@ -64,10 +64,16 @@ class TargetMeanEncoder(BaseEstimator, TransformerMixin):
     def fit(self, X, y):
         df = pd.DataFrame(X).copy() if not isinstance(X, pd.DataFrame) else X.copy()
         y = pd.Series(y)
+        # Store actual columns from the input (may be numeric indices if X was numpy array)
+        self._actual_cols_ = list(df.columns)
         if self.cols is None:
-            self._trained_cols_ = list(df.columns)
+            self._trained_cols_ = self._actual_cols_
         else:
-            self._trained_cols_ = list(self.cols)
+            # Map requested column names to actual columns (handle case where X is numpy array)
+            self._trained_cols_ = [c for c in self.cols if c in df.columns]
+            if not self._trained_cols_:
+                # If no matching columns, use all columns (X was likely a numpy array)
+                self._trained_cols_ = self._actual_cols_
         yt = self._as_numeric_target(y)
         # Prior mean across training
         self._prior_ = float(np.nanmean(yt.values)) if len(yt) else 0.0
@@ -142,7 +148,16 @@ class TargetMeanEncoder(BaseEstimator, TransformerMixin):
         k = len(self._trained_cols_)
         out = np.zeros((n, k), dtype=float)
         for j, c in enumerate(self._trained_cols_):
-            s = df[c]
+            # Handle case where column might not exist (e.g., X is numpy array with numeric indices)
+            if c in df.columns:
+                s = df[c]
+            elif j < len(df.columns):
+                # Fall back to positional index
+                s = df.iloc[:, j]
+            else:
+                # Column not found, fill with prior
+                out[:, j] = self._prior_ or 0.0
+                continue
             mapped = s.map(self._maps_.get(c, {})).fillna(self._prior_).astype(float)
             out[:, j] = mapped.values
         return out

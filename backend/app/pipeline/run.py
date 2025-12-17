@@ -996,7 +996,7 @@ def run_pipeline(
         from ..core.config import REPORT_TIMEOUT_S
 
         rstart = time.time()
-        report_html = reporting_expert(job_id, eda, modeling, explain)
+        report_html = reporting_expert(job_id, eda, modeling, explain, manifest)
         if REPORT_TIMEOUT_S and (time.time() - rstart) > REPORT_TIMEOUT_S:
             raise TimeoutError(f"Report exceeded timeout {REPORT_TIMEOUT_S}s")
         result["report_html"] = report_html

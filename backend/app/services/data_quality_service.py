@@ -109,17 +109,75 @@ def assess_target_viability(df: pd.DataFrame, target: str) -> Dict[str, Any]:
 def detect_identifier_columns(
     df: pd.DataFrame, nunique: Dict[str, int] | None = None
 ) -> List[str]:
+    """Detect identifier columns that should be excluded from modeling.
+
+    Conservative approach: only flag columns that are clearly ID-like:
+    - Integer columns with near-100% unique values (not floats - those are likely features)
+    - String columns with ID-like names and high uniqueness
+    - Sequential integer patterns (0, 1, 2, ... or 1, 2, 3, ...)
+    """
     n = len(df)
+    if n == 0:
+        return []
     nunique_map = nunique or {c: int(df[c].nunique(dropna=False)) for c in df.columns}
     id_like = []
-    for c, u in nunique_map.items():
-        name = str(c).lower()
-        if u >= max(100, int(0.95 * max(1, n))):
-            id_like.append(c)
+
+    for c in df.columns:
+        if c not in nunique_map:
             continue
-        if re.search(r"\b(id|uuid|guid|hash)\b", name):
+        u = nunique_map[c]
+        name = str(c).lower()
+
+        # Skip if column not in dataframe
+        if c not in df.columns:
+            continue
+
+        col = df[c]
+
+        # Check if it's a numeric column
+        is_numeric = ptypes.is_numeric_dtype(col)
+        is_integer = ptypes.is_integer_dtype(col)
+        is_float = ptypes.is_float_dtype(col)
+
+        # NEVER flag float columns as ID columns - they're likely features
+        if is_float:
+            continue
+
+        # For integer columns: check if they're sequential (strong ID indicator)
+        if is_integer and u >= int(0.95 * max(1, n)):
+            try:
+                sorted_vals = col.dropna().sort_values()
+                if len(sorted_vals) > 1:
+                    diffs = sorted_vals.diff().dropna()
+                    # Sequential if all differences are 1 (or very close to 1)
+                    is_sequential = (diffs == 1).all() or (diffs.abs() <= 1).all()
+                    if is_sequential:
+                        id_like.append(c)
+                        continue
+            except Exception:
+                pass
+
+        # Check for ID-like names with high uniqueness (any dtype)
+        if re.search(r"\b(id|uuid|guid|hash|key|index)\b", name):
             if u >= int(0.9 * max(1, n)):
                 id_like.append(c)
+                continue
+
+        # String/object columns with very high uniqueness and ID-like patterns
+        if ptypes.is_object_dtype(col) or ptypes.is_string_dtype(col):
+            if u >= int(0.98 * max(1, n)):  # Very high threshold for strings
+                # Check if values look like IDs (alphanumeric patterns)
+                try:
+                    sample = col.dropna().head(10).astype(str)
+                    looks_like_id = all(
+                        re.match(r'^[a-zA-Z0-9_-]+$', str(v)) and len(str(v)) >= 5
+                        for v in sample
+                    )
+                    if looks_like_id:
+                        id_like.append(c)
+                except Exception:
+                    pass
+
     return id_like
 
 

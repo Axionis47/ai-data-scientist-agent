@@ -15,17 +15,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 
-# Env for OpenAI optional
+# Load env from .env file if available
 try:
     from dotenv import load_dotenv
 
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 except Exception:
     pass
-try:
-    from openai import OpenAI  # type: ignore
-except Exception:
-    OpenAI = None  # type: ignore
 
 # --- Logging moved to core.logs ---
 from .core.logs import (
@@ -419,50 +415,50 @@ def health():
 
 @app.get("/openai-smoke")
 def openai_smoke(live: bool = False):
-    """Lightweight OpenAI readiness probe.
-
-    - live=false (default): only checks that the SDK is importable and a key is present.
-    - live=true: performs a tiny chat completion against gpt-4o-mini to confirm network access.
+    """Lightweight OpenAI readiness probe (legacy endpoint).
+    Redirects to /llm-smoke for backward compatibility.
     """
-    import os
+    return llm_smoke(live=live)
 
-    try:
-        from openai import OpenAI  # type: ignore
 
-        sdk_installed = True
-    except Exception:
-        OpenAI = None  # type: ignore
-        sdk_installed = False
+@app.get("/llm-smoke")
+def llm_smoke(live: bool = False):
+    """Lightweight LLM readiness probe supporting Vertex AI and OpenAI.
 
-    has_key = bool(os.getenv("OPENAI_API_KEY"))
+    - live=false (default): only checks that an LLM provider is available.
+    - live=true: performs a tiny chat completion to confirm network access.
+    """
+    from .core.llm import get_llm_client
+
+    client = get_llm_client()
+    provider_available = client is not None
+    provider_name = client.provider_name if client else None
 
     if not live:
         return {
-            "ok": bool(sdk_installed and has_key),
-            "sdk_installed": sdk_installed,
-            "has_key": has_key,
+            "ok": provider_available,
+            "provider": provider_name,
             "live": False,
         }
 
-    if not sdk_installed:
-        return {"ok": False, "error": "sdk_not_installed", "live": True}
-    if not has_key:
-        return {"ok": False, "error": "no_key", "live": True}
+    if not provider_available:
+        return {"ok": False, "error": "no_llm_provider", "live": True}
 
     try:
-        client = OpenAI()
-        r = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[{"role": "user", "content": "Reply with the word OK."}],
-            temperature=0.0,
-            max_tokens=3,
-        )
-        txt = (r.choices[0].message.content or "").strip()
-        return {"ok": txt.upper().startswith("OK"), "reply": txt, "live": True}
+        messages = [{"role": "user", "content": "Reply with the word OK."}]
+        txt = client.chat(messages=messages, temperature=0.0, max_tokens=10)
+        txt = txt.strip()
+        return {
+            "ok": txt.upper().startswith("OK") or "OK" in txt.upper(),
+            "reply": txt,
+            "provider": provider_name,
+            "live": True,
+        }
     except Exception as e:  # pragma: no cover
         return {
             "ok": False,
             "error": f"{type(e).__name__}: {str(e)[:200]}",
+            "provider": provider_name,
             "live": True,
         }
 
