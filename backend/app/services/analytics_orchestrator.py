@@ -30,22 +30,29 @@ from .causal_inference_service import run_causal_analysis, detect_causal_questio
 # Analysis type detection patterns
 ANALYSIS_PATTERNS = {
     "causal": {
-        "keywords": ["effect", "cause", "impact", "treatment", "intervention", "causal"],
+        "keywords": ["effect", "cause", "impact", "treatment", "intervention", "causal", "improve", "increase", "reduce", "decrease"],
         "patterns": [
             r"effect\s+of\s+\w+\s+on",
             r"does\s+\w+\s+cause",
             r"how\s+does\s+\w+\s+affect",
             r"what\s+happens\s+if",
+            r"does\s+\w+\s+improve",
+            r"does\s+\w+\s+increase",
+            r"does\s+\w+\s+reduce",
+            r"will\s+\w+\s+improve",
         ],
         "weight": 1.0,
     },
     "time_series": {
-        "keywords": ["forecast", "predict future", "trend", "seasonal", "time series", "arima", "prophet"],
+        "keywords": ["forecast", "predict future", "trend", "seasonal", "time series", "arima", "prophet", "next month", "next week", "next quarter", "next year", "over time"],
         "patterns": [
             r"forecast\s+\w+",
             r"predict\s+(?:future|next|coming)",
             r"time\s+series",
             r"trend\s+analysis",
+            r"what\s+will\s+\w+\s+be\s+(?:next|in)",
+            r"(?:next|coming)\s+(?:month|week|quarter|year|day)",
+            r"over\s+time",
         ],
         "weight": 0.9,
     },

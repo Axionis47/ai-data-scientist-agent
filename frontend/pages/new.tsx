@@ -95,9 +95,12 @@ export default function NewAnalysis(){
             <div className="card">
               <h3>Templates</h3>
               <p style={{color:'#9ca3af',marginTop:4}}>Choose a pattern. We’ll align metrics and defaults automatically.</p>
-              <div className="row">
+              <div className="row" style={{flexWrap:'wrap', gap:8}}>
                 <button className="btn secondary" onClick={()=>setQuestion('Classify which passengers survived. target=Survived')}>Classification</button>
                 <button className="btn secondary" onClick={()=>setQuestion('Predict fare amount based on passenger attributes. target=Fare')}>Regression</button>
+                <button className="btn secondary" onClick={()=>setQuestion('What is the effect of treatment on outcome? treatment=X outcome=Y')}>Causal</button>
+                <button className="btn secondary" onClick={()=>setQuestion('Forecast sales for the next 30 days. target=Sales')}>Time Series</button>
+                <button className="btn secondary" onClick={()=>setQuestion('Is there a significant difference in outcome between groups?')}>Statistical</button>
                 <button className="btn secondary" onClick={()=>setQuestion('What are the key drivers of survival?')}>Descriptive</button>
               </div>
             </div>
