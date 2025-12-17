@@ -411,6 +411,46 @@ def run_pipeline(
             {"role": "system", "content": f"Router planning failed: {e}"}
         )
 
+    # Advanced Analytics based on analysis_type (causal, time_series, statistical)
+    analysis_type = (manifest.get("router_plan") or {}).get("analysis_type", "predictive")
+    advanced_analytics: Dict[str, Any] = {}
+
+    if analysis_type in ("causal", "time_series", "statistical"):
+        try:
+            from ..services.analytics_orchestrator import run_analysis
+
+            decisions = (manifest.get("router_plan") or {}).get("decisions") or {}
+            config = {
+                "target": manifest.get("target") or (manifest.get("framing") or {}).get("target"),
+                "treatment": decisions.get("treatment"),
+                "outcome": decisions.get("outcome"),
+                "time_col": None,  # Auto-detect
+            }
+
+            aa_start = time.time()
+            advanced_analytics = run_analysis(df, analysis_type, config)
+            aa_dur = int((time.time() - aa_start) * 1000)
+
+            # Save results
+            try:
+                (job_dir / "advanced_analytics.json").write_text(
+                    json.dumps(advanced_analytics, indent=2, default=str)
+                )
+                manifest["advanced_analytics"] = advanced_analytics
+            except Exception:
+                pass
+
+            model_decision(
+                job_id,
+                f"Advanced analytics ({analysis_type}): completed in {aa_dur}ms",
+                stage="analytics",
+                duration_ms=aa_dur,
+            )
+        except Exception as e:
+            job.setdefault("messages", []).append(
+                {"role": "system", "content": f"Advanced analytics failed: {e}"}
+            )
+
     # Data quality & leakage checks (pre-modeling)
     try:
         from ..services.data_quality_service import (

@@ -13,6 +13,11 @@ ROUTER_DECISIONS_SCHEMA = {
             "items": {"type": "string"},
             "description": "Ordered list of analysis steps"
         },
+        "analysis_type": {
+            "type": "string",
+            "enum": ["predictive", "causal", "time_series", "statistical", "exploratory"],
+            "description": "Primary analysis type based on user question"
+        },
         "decisions": {
             "type": "object",
             "properties": {
@@ -40,75 +45,103 @@ ROUTER_DECISIONS_SCHEMA = {
                     "type": "string",
                     "enum": ["standard", "robust", "minmax", "none"],
                     "description": "Feature scaling method"
+                },
+                "treatment": {
+                    "type": "string",
+                    "description": "Treatment variable for causal analysis (if applicable)"
+                },
+                "outcome": {
+                    "type": "string",
+                    "description": "Outcome variable for causal analysis (if applicable)"
                 }
             },
             "required": ["class_weight", "metric", "split"]
         }
     },
-    "required": ["plan", "decisions"]
+    "required": ["plan", "analysis_type", "decisions"]
 }
 
-ROUTER_SYSTEM_PROMPT = """You are an expert data science planner. Analyze dataset characteristics and return a JSON execution plan.
+ROUTER_SYSTEM_PROMPT = """You are an expert data science planner. Analyze the user's question and dataset to return a JSON execution plan.
 
 Return ONLY valid JSON with this exact structure:
 {
   "plan": ["step1", "step2", ...],
+  "analysis_type": "predictive" | "causal" | "time_series" | "statistical" | "exploratory",
   "decisions": {
     "class_weight": "balanced" | "none",
     "metric": "f1" | "accuracy" | "roc_auc" | "r2" | "rmse",
     "split": "random" | "time" | "stratified",
     "budget": "low" | "normal" | "high",
-    "scaling": "standard" | "robust" | "minmax" | "none"
+    "scaling": "standard" | "robust" | "minmax" | "none",
+    "treatment": "column_name" (only for causal analysis),
+    "outcome": "column_name" (only for causal analysis)
   }
 }
 
-## DECISION RULES (follow strictly):
+## ANALYSIS TYPE DETECTION (choose one):
+
+### predictive (default):
+- Questions asking to "predict", "classify", "model", "forecast outcome"
+- Standard ML classification or regression tasks
+
+### causal:
+- Questions about "effect of X on Y", "does X cause Y", "impact of treatment"
+- Requires treatment and outcome variables to be specified
+- Examples: "What is the effect of marketing spend on sales?", "Does training improve retention?"
+
+### time_series:
+- Questions about "forecast", "trend", "seasonal patterns", "future values"
+- Data has a time/date column
+- Examples: "Forecast next month's sales", "What's the trend?"
+
+### statistical:
+- Questions about "significant difference", "hypothesis test", "correlation"
+- Testing relationships without building predictive models
+- Examples: "Is there a significant difference between groups?", "Are X and Y correlated?"
+
+### exploratory:
+- General questions about data patterns, distributions, summaries
+- No specific prediction or causal question
+- Examples: "What patterns exist?", "Summarize this data"
+
+## DECISION RULES:
 
 ### class_weight:
-- "balanced": Use when minority class <25% of data (imbalance ratio >3:1)
-- "balanced": Use for fraud detection, churn prediction, rare event detection
-- "none": Use when classes are roughly equal (40-60% split)
+- "balanced": Minority class <25% (imbalance >3:1), fraud/churn detection
+- "none": Classes roughly equal (40-60% split)
 
 ### metric:
-- "f1": Default for binary classification, especially imbalanced data
-- "roc_auc": When ranking/probability is important (e.g., credit scoring)
-- "accuracy": Only for balanced multi-class classification
-- "r2": For regression tasks (numeric target with many unique values)
-- "rmse": For regression when error magnitude matters (e.g., pricing)
+- "f1": Binary classification, especially imbalanced
+- "roc_auc": Ranking/probability important
+- "accuracy": Balanced multi-class
+- "r2"/"rmse": Regression
 
 ### split:
-- "stratified": Default for classification (preserves class distribution)
-- "time": When time_columns exist AND data should not leak future info
-- "random": For regression or when no temporal ordering matters
+- "stratified": Classification (preserves class distribution)
+- "time": Time series or when temporal ordering matters
+- "random": Regression or no temporal order
 
 ### budget:
-- "low": <1000 rows - use simpler models, less hyperparameter tuning
-- "normal": 1000-100k rows - standard model suite
-- "high": >100k rows - can afford expensive models, more tuning
+- "low": <1000 rows, "normal": 1000-100k rows, "high": >100k rows
 
 ### scaling:
-- "standard": Default - StandardScaler for normally distributed features
-- "robust": When outliers present (high skewness/kurtosis in data)
-- "minmax": When features need to be in [0,1] range
-- "none": When only using tree-based models
+- "robust": Outliers/high skewness, "standard": Normal distributions, "none": Tree models only
 
 ## EXAMPLES:
 
-Example 1 - Fraud Detection (imbalanced):
-Input: 10000 rows, binary target with 2% fraud rate
-Output: {"plan": ["eda", "feature_engineering", "modeling", "evaluation"], "decisions": {"class_weight": "balanced", "metric": "f1", "split": "stratified", "budget": "normal", "scaling": "robust"}}
+Example 1 - Fraud Detection (predictive, imbalanced):
+{"plan": ["eda", "feature_engineering", "modeling"], "analysis_type": "predictive", "decisions": {"class_weight": "balanced", "metric": "f1", "split": "stratified", "budget": "normal", "scaling": "robust"}}
 
-Example 2 - House Price Prediction (regression):
-Input: 5000 rows, numeric target (prices), some outliers
-Output: {"plan": ["eda", "feature_engineering", "modeling", "evaluation"], "decisions": {"class_weight": "none", "metric": "r2", "split": "random", "budget": "normal", "scaling": "robust"}}
+Example 2 - Causal Effect (causal):
+Question: "What is the effect of discount on purchase?"
+{"plan": ["eda", "causal_analysis", "sensitivity"], "analysis_type": "causal", "decisions": {"class_weight": "none", "metric": "f1", "split": "random", "budget": "normal", "scaling": "standard", "treatment": "discount", "outcome": "purchase"}}
 
-Example 3 - Customer Churn (balanced classification):
-Input: 2000 rows, binary target ~45%/55% split
-Output: {"plan": ["eda", "modeling", "evaluation"], "decisions": {"class_weight": "none", "metric": "f1", "split": "stratified", "budget": "normal", "scaling": "standard"}}
+Example 3 - Time Series Forecast:
+{"plan": ["eda", "stationarity_test", "forecasting"], "analysis_type": "time_series", "decisions": {"class_weight": "none", "metric": "rmse", "split": "time", "budget": "normal", "scaling": "standard"}}
 
-Example 4 - Time Series Classification:
-Input: 50000 rows, has date column, binary target
-Output: {"plan": ["eda", "feature_engineering", "modeling", "evaluation"], "decisions": {"class_weight": "balanced", "metric": "roc_auc", "split": "time", "budget": "high", "scaling": "standard"}}"""
+Example 4 - Statistical Test:
+Question: "Is there a significant difference in salary between departments?"
+{"plan": ["eda", "statistical_tests"], "analysis_type": "statistical", "decisions": {"class_weight": "none", "metric": "f1", "split": "random", "budget": "low", "scaling": "none"}}"""
 
 
 def build_context_pack(eda: Dict[str, Any], manifest: Dict[str, Any]) -> Dict[str, Any]:
@@ -247,6 +280,7 @@ def plan_with_router(ctx: Dict[str, Any]) -> Dict[str, Any]:
     """Plan the analysis using LLM with structured output."""
     fallback = {
         "plan": ["feature_expert", "modeling", "evaluation"],
+        "analysis_type": "predictive",
         "decisions": {"budget": "normal", "class_weight": "none", "metric": "f1", "split": "stratified"},
         "source": "fallback",
     }
@@ -285,6 +319,13 @@ def plan_with_router(ctx: Dict[str, Any]) -> Dict[str, Any]:
 
         plan = json.loads(txt)
 
+        # Validate and normalize analysis_type
+        valid_types = ["predictive", "causal", "time_series", "statistical", "exploratory"]
+        analysis_type = plan.get("analysis_type", "predictive")
+        if analysis_type not in valid_types:
+            analysis_type = "predictive"
+        plan["analysis_type"] = analysis_type
+
         # Validate and normalize decisions
         decisions = plan.get("decisions") or {}
         normalized = {
@@ -294,11 +335,19 @@ def plan_with_router(ctx: Dict[str, Any]) -> Dict[str, Any]:
             "budget": decisions.get("budget", "normal"),
             "scaling": decisions.get("scaling", "standard"),
         }
+
+        # Include causal-specific fields if present
+        if analysis_type == "causal":
+            if decisions.get("treatment"):
+                normalized["treatment"] = decisions["treatment"]
+            if decisions.get("outcome"):
+                normalized["outcome"] = decisions["outcome"]
+
         plan["decisions"] = normalized
         plan["source"] = client.provider_name
 
         if job_id:
-            model_decision(job_id, f"Router decisions: {json.dumps(normalized)}")
+            model_decision(job_id, f"Router analysis_type: {analysis_type}, decisions: {json.dumps(normalized)}")
 
         return plan
     except Exception as e:

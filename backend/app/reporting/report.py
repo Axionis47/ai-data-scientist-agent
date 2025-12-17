@@ -369,8 +369,42 @@ def _build_enriched_report_context(
     # Model training notes
     model_notes = modeling.get("notes") or []
 
+    # Advanced analytics (causal, time series, statistical)
+    advanced_analytics = manifest.get("advanced_analytics") or {}
+    analysis_type = (manifest.get("router_plan") or {}).get("analysis_type", "predictive")
+
+    advanced_summary = None
+    if advanced_analytics:
+        if analysis_type == "causal":
+            effect = advanced_analytics.get("effect_estimate") or {}
+            advanced_summary = {
+                "type": "causal_inference",
+                "treatment_effect": effect.get("effect"),
+                "confidence_interval": [effect.get("ci_lower"), effect.get("ci_upper")],
+                "method": effect.get("method"),
+                "is_robust": effect.get("robust"),
+                "interpretation": effect.get("interpretation"),
+            }
+        elif analysis_type == "time_series":
+            ts = advanced_analytics
+            advanced_summary = {
+                "type": "time_series",
+                "is_stationary": ts.get("stationarity", {}).get("is_stationary"),
+                "has_trend": ts.get("decomposition", {}).get("has_trend"),
+                "has_seasonality": ts.get("decomposition", {}).get("has_seasonality"),
+                "forecast_horizon": ts.get("forecast", {}).get("horizon"),
+            }
+        elif analysis_type == "statistical":
+            stat = advanced_analytics
+            advanced_summary = {
+                "type": "statistical_testing",
+                "tests_run": list(stat.get("tests", {}).keys()) if stat.get("tests") else [],
+                "significant_findings": stat.get("summary", {}).get("significant_findings"),
+            }
+
     return {
         "job_id": job_id,
+        "analysis_type": analysis_type,
         "dataset": {
             "rows": shape.get("rows"),
             "cols": shape.get("cols"),
@@ -402,6 +436,7 @@ def _build_enriched_report_context(
         "outlier_info": outlier_info,
         "feature_engineering": fe_summary,
         "model_notes": model_notes[:5],
+        "advanced_analytics": advanced_summary,
         "user_question": manifest.get("question"),
         "business_context": manifest.get("nl_description") or manifest.get("context"),
         "explain": {
@@ -444,17 +479,36 @@ Guidelines:
 - Note any data quality concerns that affect reliability
 - Keep bullet points concise but informative"""
 
-                user_prompt = f"""Generate an executive summary report for this ML analysis.
+                # Build required sections based on analysis type
+                analysis_type = enriched_ctx.get("analysis_type", "predictive")
+                advanced = enriched_ctx.get("advanced_analytics")
 
-## Required Sections:
+                sections_text = """## Required Sections:
 1. **Model Performance Summary** - Key metrics with business interpretation
 2. **Top Predictive Factors** - What drives the predictions (from top_features)
 3. **Model Comparison** - How different models performed (from model_comparison)
 4. **Data Quality Notes** - Any issues that affect reliability
-5. **Business Recommendations** - Actionable next steps based on findings
+5. **Business Recommendations** - Actionable next steps based on findings"""
+
+                if analysis_type == "causal" and advanced:
+                    sections_text += """
+6. **Causal Analysis Results** - Treatment effect estimate with confidence interval and interpretation
+7. **Causal Assumptions** - Key assumptions and their validity"""
+                elif analysis_type == "time_series" and advanced:
+                    sections_text += """
+6. **Time Series Analysis** - Stationarity, trend, and seasonality findings
+7. **Forecast Results** - Predictions with confidence intervals"""
+                elif analysis_type == "statistical" and advanced:
+                    sections_text += """
+6. **Statistical Test Results** - Hypothesis tests performed and their conclusions
+7. **Significant Findings** - Key statistically significant relationships"""
+
+                user_prompt = f"""Generate an executive summary report for this ML analysis.
+
+{sections_text}
 
 ## Context Data:
-{json.dumps(enriched_ctx, indent=2)[:7000]}
+{json.dumps(enriched_ctx, indent=2, default=str)[:7000]}
 
 Generate the JSON report now."""
 
