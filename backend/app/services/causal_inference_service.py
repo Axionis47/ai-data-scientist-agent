@@ -3,15 +3,23 @@
 Provides causal inference and treatment effect estimation capabilities.
 
 Public API:
-- estimate_treatment_effect(df, treatment, outcome, confounders) -> Dict
+- estimate_treatment_effect(df, treatment, outcome, confounders) -> Dict (DoWhy/OLS)
+- double_ml_effect(df, treatment, outcome, confounders) -> Dict (EconML Double ML)
 - propensity_score_matching(df, treatment, outcome, covariates) -> Dict
 - sensitivity_analysis(effect_result) -> Dict with robustness checks
 - detect_causal_question(question) -> Dict with treatment/outcome detection
 - run_causal_analysis(df, treatment, outcome, config) -> Dict with full analysis
 
+Methods Available:
+- DoWhy Backdoor: Rigorous causal inference with refutation tests
+- Double ML (EconML): Debiased ML for valid statistical inference
+- Propensity Score Matching: Nearest-neighbor matching on propensity scores
+- OLS Regression: Simple regression-based fallback
+
 Design:
 - Primary: Uses DoWhy library when available for rigorous causal inference
-- Fallback: Simple regression-based estimates when DoWhy unavailable
+- Double ML: Uses EconML for debiased treatment effect estimation
+- Fallback: Simple regression-based estimates when libraries unavailable
 - Always includes sensitivity analysis and caveats
 - Clear documentation of assumptions
 """
@@ -272,6 +280,157 @@ def _build_simple_causal_graph(
     return graph
 
 
+def double_ml_effect(
+    df: pd.DataFrame,
+    treatment: str,
+    outcome: str,
+    confounders: List[str],
+    model_y: str = "auto",
+    model_t: str = "auto",
+) -> Dict[str, Any]:
+    """Estimate treatment effect using Double/Debiased Machine Learning.
+
+    Double ML provides valid statistical inference even when using ML models
+    for nuisance estimation. It's robust to regularization bias and overfitting.
+
+    Args:
+        df: DataFrame with treatment, outcome, and confounders
+        treatment: Name of the treatment column (binary or continuous)
+        outcome: Name of the outcome column
+        confounders: List of confounder column names
+        model_y: Model for outcome ('auto', 'linear', 'forest', 'gbm')
+        model_t: Model for treatment ('auto', 'linear', 'forest', 'gbm')
+
+    Returns:
+        Dict with effect estimate, CI, p-value, and interpretation
+    """
+    import warnings
+
+    if not ECONML_AVAILABLE:
+        return {
+            "error": "EconML not installed. Install with: pip install econml",
+            "method": "Double ML (unavailable)",
+        }
+
+    from econml.dml import LinearDML, CausalForestDML
+    from sklearn.linear_model import LassoCV, LogisticRegressionCV
+    from sklearn.ensemble import RandomForestRegressor, RandomForestClassifier, GradientBoostingRegressor, GradientBoostingClassifier
+
+    # Prepare data
+    data = df[[treatment, outcome] + confounders].dropna()
+
+    if len(data) < 100:
+        return {
+            "error": f"Insufficient data for Double ML (n={len(data)}, need ≥100)",
+            "method": "Double ML",
+        }
+
+    Y = data[outcome].values
+    T = data[treatment].values
+    X = data[confounders].values
+
+    # Determine if treatment is binary or continuous
+    is_binary_treatment = len(np.unique(T)) == 2
+
+    try:
+        # Select models based on preferences
+        if model_y == "auto" or model_y == "linear":
+            model_y_final = LassoCV(cv=5)
+        elif model_y == "forest":
+            model_y_final = RandomForestRegressor(n_estimators=100, random_state=42)
+        elif model_y == "gbm":
+            model_y_final = GradientBoostingRegressor(n_estimators=100, random_state=42)
+        else:
+            model_y_final = LassoCV(cv=5)
+
+        if model_t == "auto":
+            if is_binary_treatment:
+                model_t_final = LogisticRegressionCV(cv=5, max_iter=1000)
+            else:
+                model_t_final = LassoCV(cv=5)
+        elif model_t == "linear":
+            if is_binary_treatment:
+                model_t_final = LogisticRegressionCV(cv=5, max_iter=1000)
+            else:
+                model_t_final = LassoCV(cv=5)
+        elif model_t == "forest":
+            if is_binary_treatment:
+                model_t_final = RandomForestClassifier(n_estimators=100, random_state=42)
+            else:
+                model_t_final = RandomForestRegressor(n_estimators=100, random_state=42)
+        elif model_t == "gbm":
+            if is_binary_treatment:
+                model_t_final = GradientBoostingClassifier(n_estimators=100, random_state=42)
+            else:
+                model_t_final = GradientBoostingRegressor(n_estimators=100, random_state=42)
+        else:
+            model_t_final = LogisticRegressionCV(cv=5, max_iter=1000) if is_binary_treatment else LassoCV(cv=5)
+
+        # Fit Double ML with warning suppression
+        dml = LinearDML(
+            model_y=model_y_final,
+            model_t=model_t_final,
+            discrete_treatment=is_binary_treatment,
+            cv=5,
+            random_state=42,
+        )
+
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+            warnings.filterwarnings("ignore", category=UserWarning)
+            dml.fit(Y, T, X=X)
+
+            # Get effect estimate
+            effect = dml.effect(X).mean()
+
+            # Get confidence interval
+            inference = dml.effect_inference(X)
+            ci_lower = inference.conf_int()[0].mean()
+            ci_upper = inference.conf_int()[1].mean()
+
+            # Get standard error and compute p-value
+            std_err = inference.stderr.mean()
+
+        z_stat = effect / std_err if std_err > 0 else 0
+        from scipy import stats as sp_stats
+        p_value = 2 * (1 - sp_stats.norm.cdf(abs(z_stat)))
+
+        # Effect interpretation
+        if is_binary_treatment:
+            effect_desc = f"Switching treatment from 0 to 1 changes outcome by {effect:.4f}"
+        else:
+            effect_desc = f"A 1-unit increase in treatment changes outcome by {effect:.4f}"
+
+        is_significant = p_value < 0.05
+        sig_text = "statistically significant" if is_significant else "NOT statistically significant"
+
+        return {
+            "method": "Double ML (LinearDML)",
+            "effect": float(effect),
+            "ci_lower": float(ci_lower),
+            "ci_upper": float(ci_upper),
+            "std_error": float(std_err),
+            "z_statistic": float(z_stat),
+            "p_value": float(p_value),
+            "is_significant": is_significant,
+            "n_samples": len(data),
+            "n_confounders": len(confounders),
+            "treatment": treatment,
+            "outcome": outcome,
+            "confounders": confounders,
+            "is_binary_treatment": is_binary_treatment,
+            "interpretation": f"{effect_desc} (95% CI: [{ci_lower:.4f}, {ci_upper:.4f}], p={p_value:.4f}). This effect is {sig_text}.",
+        }
+
+    except Exception as e:
+        return {
+            "error": f"Double ML estimation failed: {str(e)}",
+            "method": "Double ML",
+            "treatment": treatment,
+            "outcome": outcome,
+        }
+
+
 def propensity_score_matching(
     df: pd.DataFrame,
     treatment: str,
@@ -386,14 +545,20 @@ def run_causal_analysis(
 
     results["confounders"] = confounders
 
-    # 1. Primary effect estimate
+    # 1. Primary effect estimate (DoWhy or OLS fallback)
     results["effect_estimate"] = estimate_treatment_effect(
         df, treatment, outcome, confounders
     )
 
-    # 2. Propensity score matching (if treatment is binary)
+    # 2. Double ML estimate (if EconML available and sufficient data)
+    numeric_confounders = [c for c in confounders if np.issubdtype(df[c].dtype, np.number)]
+    if ECONML_AVAILABLE and len(df) >= 100 and len(numeric_confounders) >= 2:
+        results["double_ml_estimate"] = double_ml_effect(
+            df, treatment, outcome, numeric_confounders
+        )
+
+    # 3. Propensity score matching (if treatment is binary)
     if df[treatment].nunique() == 2:
-        numeric_confounders = [c for c in confounders if np.issubdtype(df[c].dtype, np.number)]
         if len(numeric_confounders) >= 2:
             results["matching_estimate"] = propensity_score_matching(
                 df, treatment, outcome, numeric_confounders
