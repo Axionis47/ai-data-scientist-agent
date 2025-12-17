@@ -424,6 +424,7 @@ def run_pipeline(
                 "target": manifest.get("target") or (manifest.get("framing") or {}).get("target"),
                 "treatment": decisions.get("treatment"),
                 "outcome": decisions.get("outcome"),
+                "confounders": decisions.get("confounders"),  # Pass confounders from router
                 "time_col": None,  # Auto-detect
             }
 
@@ -1094,7 +1095,19 @@ def run_pipeline(
         pass
 
     result["phase"] = "full"
-    (job_dir / "result.json").write_text(json.dumps(result, indent=2))
+
+    # Custom JSON encoder to handle numpy types
+    def json_default(obj):
+        import numpy as np
+        if isinstance(obj, (np.bool_, np.integer)):
+            return int(obj) if isinstance(obj, np.integer) else bool(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
+    (job_dir / "result.json").write_text(json.dumps(result, indent=2, default=json_default))
     # Final status: mark as FAILED if validation_error, else COMPLETED
     if validation_error:
         _update({"status": "FAILED", "progress": 100, "stage": "error"})

@@ -536,12 +536,20 @@ def run_causal_analysis(
     if confounders is None:
         numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
         cat_cols = df.select_dtypes(include=["object", "category"]).columns.tolist()
-        confounders = [
-            c for c in (numeric_cols + cat_cols)
+        # For numeric columns, don't filter by nunique (continuous vars are fine)
+        # For categorical columns, limit to those with <100 unique values
+        numeric_confounders = [
+            c for c in numeric_cols
+            if c not in [treatment, outcome]
+            and df[c].notna().mean() > 0.5
+        ]
+        cat_confounders = [
+            c for c in cat_cols
             if c not in [treatment, outcome]
             and df[c].notna().mean() > 0.5
             and df[c].nunique() < 100
-        ][:10]
+        ]
+        confounders = (numeric_confounders + cat_confounders)[:10]
 
     results["confounders"] = confounders
 
@@ -552,14 +560,14 @@ def run_causal_analysis(
 
     # 2. Double ML estimate (if EconML available and sufficient data)
     numeric_confounders = [c for c in confounders if np.issubdtype(df[c].dtype, np.number)]
-    if ECONML_AVAILABLE and len(df) >= 100 and len(numeric_confounders) >= 2:
+    if ECONML_AVAILABLE and len(df) >= 100 and len(numeric_confounders) >= 1:
         results["double_ml_estimate"] = double_ml_effect(
             df, treatment, outcome, numeric_confounders
         )
 
     # 3. Propensity score matching (if treatment is binary)
     if df[treatment].nunique() == 2:
-        if len(numeric_confounders) >= 2:
+        if len(numeric_confounders) >= 1:
             results["matching_estimate"] = propensity_score_matching(
                 df, treatment, outcome, numeric_confounders
             )

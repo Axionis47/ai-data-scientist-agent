@@ -53,6 +53,11 @@ ROUTER_DECISIONS_SCHEMA = {
                 "outcome": {
                     "type": "string",
                     "description": "Outcome variable for causal analysis (if applicable)"
+                },
+                "confounders": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "Confounder variables for causal analysis (columns that affect both treatment and outcome)"
                 }
             },
             "required": ["class_weight", "metric", "split"]
@@ -74,7 +79,8 @@ Return ONLY valid JSON with this exact structure:
     "budget": "low" | "normal" | "high",
     "scaling": "standard" | "robust" | "minmax" | "none",
     "treatment": "column_name" (only for causal analysis),
-    "outcome": "column_name" (only for causal analysis)
+    "outcome": "column_name" (only for causal analysis),
+    "confounders": ["col1", "col2"] (only for causal analysis - variables that affect both treatment and outcome)
   }
 }
 
@@ -87,6 +93,7 @@ Return ONLY valid JSON with this exact structure:
 ### causal:
 - Questions about "effect of X on Y", "does X cause Y", "impact of treatment"
 - Requires treatment and outcome variables to be specified
+- If user mentions "control for" or "confounders", extract those column names
 - Examples: "What is the effect of marketing spend on sales?", "Does training improve retention?"
 
 ### time_series:
@@ -133,8 +140,8 @@ Example 1 - Fraud Detection (predictive, imbalanced):
 {"plan": ["eda", "feature_engineering", "modeling"], "analysis_type": "predictive", "decisions": {"class_weight": "balanced", "metric": "f1", "split": "stratified", "budget": "normal", "scaling": "robust"}}
 
 Example 2 - Causal Effect (causal):
-Question: "What is the effect of discount on purchase?"
-{"plan": ["eda", "causal_analysis", "sensitivity"], "analysis_type": "causal", "decisions": {"class_weight": "none", "metric": "f1", "split": "random", "budget": "normal", "scaling": "standard", "treatment": "discount", "outcome": "purchase"}}
+Question: "What is the effect of discount on purchase? Control for age and income."
+{"plan": ["eda", "causal_analysis", "sensitivity"], "analysis_type": "causal", "decisions": {"class_weight": "none", "metric": "f1", "split": "random", "budget": "normal", "scaling": "standard", "treatment": "discount", "outcome": "purchase", "confounders": ["age", "income"]}}
 
 Example 3 - Time Series Forecast:
 {"plan": ["eda", "stationarity_test", "forecasting"], "analysis_type": "time_series", "decisions": {"class_weight": "none", "metric": "rmse", "split": "time", "budget": "normal", "scaling": "standard"}}
