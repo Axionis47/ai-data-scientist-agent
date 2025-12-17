@@ -3,11 +3,17 @@
 Provides hypothesis testing and statistical inference capabilities.
 
 Public API:
-- run_statistical_tests(df, target, config) -> Dict with test results
-- test_normality(series) -> Dict with test name, statistic, p-value, interpretation
-- test_correlation_significance(x, y) -> Dict with correlation, p-value
-- test_group_differences(df, group_col, value_col) -> Dict (t-test or ANOVA)
-- test_independence(df, col1, col2) -> Dict (chi-square for categoricals)
+- run_statistical_tests(df, target, config) -> Dict with comprehensive test results
+- test_normality(series) -> Shapiro-Wilk or D'Agostino-Pearson normality test
+- test_correlation_significance(x, y) -> Pearson or Spearman correlation with p-value
+- test_group_differences(df, group_col, value_col) -> t-test, ANOVA, Mann-Whitney, Kruskal-Wallis
+- test_independence(df, col1, col2) -> Chi-square or Fisher's exact with Cramér's V
+- test_paired_samples(before, after) -> Paired t-test or Wilcoxon signed-rank with Cohen's d
+- test_proportions(s1, n1, s2, n2) -> Z-test for two proportions
+- cohens_d(group1, group2) -> Effect size for group comparisons
+- eta_squared(df, group_col, value_col) -> Effect size for ANOVA
+- benjamini_hochberg_correction(p_values) -> FDR correction for multiple comparisons
+- ks_test(series, distribution) -> Kolmogorov-Smirnov goodness of fit
 
 Design:
 - All functions return structured dicts with 'test_name', 'statistic', 'p_value', 'interpretation'
@@ -16,7 +22,7 @@ Design:
 """
 
 from __future__ import annotations
-from typing import Dict, Any, Optional, List, Tuple
+from typing import Dict, Any, Optional, List
 import numpy as np
 import pandas as pd
 
@@ -252,7 +258,7 @@ def test_independence(
         if min_expected < 5:
             # Use Fisher's exact test for 2x2, otherwise warn
             if contingency.shape == (2, 2):
-                odds, p_value = stats.fisher_exact(contingency.values)
+                _, p_value = stats.fisher_exact(contingency.values)
                 test_used = "Fisher's exact"
             else:
                 test_used = "Chi-square (low expected freq warning)"
@@ -293,6 +299,274 @@ def test_independence(
             "statistic": None,
             "p_value": None,
             "is_significant": None,
+            "interpretation": f"Test failed: {e}",
+        }
+
+
+def test_paired_samples(
+    before: pd.Series, after: pd.Series, alpha: float = 0.05
+) -> Dict[str, Any]:
+    """Test if there is a significant difference between paired samples.
+
+    Uses paired t-test for normal data, Wilcoxon signed-rank otherwise.
+    """
+    combined = pd.DataFrame({"before": before, "after": after}).dropna()
+    if len(combined) < 5:
+        return {
+            "test_name": "paired_samples",
+            "statistic": None,
+            "p_value": None,
+            "is_significant": None,
+            "interpretation": f"Insufficient paired data (n={len(combined)})",
+        }
+
+    diff = combined["after"] - combined["before"]
+
+    try:
+        # Check normality of differences
+        norm_result = test_normality(diff)
+        is_normal = norm_result.get("is_normal", False)
+
+        if is_normal:
+            stat, p_value = stats.ttest_rel(combined["before"], combined["after"])
+            test_used = "Paired t-test"
+        else:
+            stat, p_value = stats.wilcoxon(combined["before"], combined["after"])
+            test_used = "Wilcoxon signed-rank"
+
+        is_significant = p_value < alpha
+        mean_diff = float(diff.mean())
+
+        # Cohen's d for effect size
+        std_diff = diff.std()
+        cohens_d = mean_diff / std_diff if std_diff > 0 else 0
+
+        effect = (
+            "large" if abs(cohens_d) > 0.8
+            else "medium" if abs(cohens_d) > 0.5
+            else "small"
+        )
+
+        interpretation = (
+            f"{test_used}: {'Significant' if is_significant else 'No significant'} "
+            f"difference (p={p_value:.4f}, mean diff={mean_diff:.4f}, Cohen's d={cohens_d:.3f} - {effect})"
+        )
+
+        return {
+            "test_name": test_used,
+            "statistic": float(stat),
+            "p_value": float(p_value),
+            "is_significant": is_significant,
+            "mean_difference": mean_diff,
+            "cohens_d": float(cohens_d),
+            "effect_size": effect,
+            "n_pairs": len(combined),
+            "interpretation": interpretation,
+        }
+    except Exception as e:
+        return {
+            "test_name": "paired_samples",
+            "statistic": None,
+            "p_value": None,
+            "is_significant": None,
+            "interpretation": f"Test failed: {e}",
+        }
+
+
+def test_proportions(
+    successes1: int, n1: int, successes2: int, n2: int, alpha: float = 0.05
+) -> Dict[str, Any]:
+    """Test if two proportions are significantly different (Z-test for proportions)."""
+    if n1 < 10 or n2 < 10:
+        return {
+            "test_name": "proportions",
+            "statistic": None,
+            "p_value": None,
+            "is_significant": None,
+            "interpretation": "Sample sizes too small (need n >= 10)",
+        }
+
+    try:
+        p1 = successes1 / n1
+        p2 = successes2 / n2
+        p_pooled = (successes1 + successes2) / (n1 + n2)
+
+        # Z-test
+        se = np.sqrt(p_pooled * (1 - p_pooled) * (1/n1 + 1/n2))
+        if se < 1e-10:
+            return {
+                "test_name": "proportions",
+                "statistic": None,
+                "p_value": None,
+                "is_significant": None,
+                "interpretation": "Proportions are identical or near-zero variance",
+            }
+
+        z_stat = (p1 - p2) / se
+        p_value = 2 * (1 - stats.norm.cdf(abs(z_stat)))  # Two-tailed
+
+        is_significant = p_value < alpha
+
+        interpretation = (
+            f"Z-test for proportions: {'Significant' if is_significant else 'No significant'} "
+            f"difference (p1={p1:.3f}, p2={p2:.3f}, z={z_stat:.3f}, p={p_value:.4f})"
+        )
+
+        return {
+            "test_name": "Z-test for proportions",
+            "proportion1": float(p1),
+            "proportion2": float(p2),
+            "statistic": float(z_stat),
+            "p_value": float(p_value),
+            "is_significant": is_significant,
+            "difference": float(p1 - p2),
+            "interpretation": interpretation,
+        }
+    except Exception as e:
+        return {
+            "test_name": "proportions",
+            "statistic": None,
+            "p_value": None,
+            "is_significant": None,
+            "interpretation": f"Test failed: {e}",
+        }
+
+
+def cohens_d(group1: np.ndarray, group2: np.ndarray) -> float:
+    """Calculate Cohen's d effect size for two groups."""
+    n1, n2 = len(group1), len(group2)
+    var1, var2 = np.var(group1, ddof=1), np.var(group2, ddof=1)
+
+    # Pooled standard deviation
+    pooled_std = np.sqrt(((n1 - 1) * var1 + (n2 - 1) * var2) / (n1 + n2 - 2))
+
+    if pooled_std < 1e-10:
+        return 0.0
+
+    return float((np.mean(group1) - np.mean(group2)) / pooled_std)
+
+
+def eta_squared(df: pd.DataFrame, group_col: str, value_col: str) -> Dict[str, Any]:
+    """Calculate eta-squared effect size for ANOVA."""
+    try:
+        data = df[[group_col, value_col]].dropna()
+        groups = data[group_col].unique()
+
+        if len(groups) < 2:
+            return {"eta_squared": None, "interpretation": "Need at least 2 groups"}
+
+        group_data = [data[data[group_col] == g][value_col].values for g in groups]
+
+        # Calculate SS_between and SS_total
+        grand_mean = data[value_col].mean()
+
+        ss_between = sum(
+            len(g) * (np.mean(g) - grand_mean) ** 2
+            for g in group_data
+        )
+        ss_total = ((data[value_col] - grand_mean) ** 2).sum()
+
+        if ss_total < 1e-10:
+            return {"eta_squared": 0.0, "interpretation": "No variance in data"}
+
+        eta_sq = ss_between / ss_total
+
+        effect = (
+            "large" if eta_sq > 0.14
+            else "medium" if eta_sq > 0.06
+            else "small"
+        )
+
+        return {
+            "eta_squared": float(eta_sq),
+            "effect_size": effect,
+            "interpretation": f"η² = {eta_sq:.4f} ({effect} effect)",
+        }
+    except Exception as e:
+        return {"eta_squared": None, "interpretation": f"Calculation failed: {e}"}
+
+
+def benjamini_hochberg_correction(p_values: List[float], alpha: float = 0.05) -> Dict[str, Any]:
+    """Apply Benjamini-Hochberg FDR correction for multiple comparisons."""
+    n = len(p_values)
+    if n == 0:
+        return {"adjusted_p_values": [], "significant": [], "interpretation": "No p-values provided"}
+
+    # Sort p-values with original indices
+    sorted_pairs = sorted(enumerate(p_values), key=lambda x: x[1])
+
+    # Calculate adjusted p-values
+    adjusted = [0.0] * n
+    prev_adjusted = 1.0
+
+    for i in range(n - 1, -1, -1):
+        orig_idx, p = sorted_pairs[i]
+        rank = i + 1
+        adjusted_p = min(prev_adjusted, p * n / rank)
+        adjusted[orig_idx] = adjusted_p
+        prev_adjusted = adjusted_p
+
+    significant = [adj_p < alpha for adj_p in adjusted]
+
+    return {
+        "original_p_values": p_values,
+        "adjusted_p_values": adjusted,
+        "significant": significant,
+        "n_significant": sum(significant),
+        "interpretation": f"BH correction: {sum(significant)}/{n} tests remain significant at α={alpha}",
+    }
+
+
+def ks_test(series: pd.Series, distribution: str = "norm", alpha: float = 0.05) -> Dict[str, Any]:
+    """Kolmogorov-Smirnov test for goodness of fit."""
+    arr = series.dropna().values
+    n = len(arr)
+
+    if n < 5:
+        return {
+            "test_name": "Kolmogorov-Smirnov",
+            "statistic": None,
+            "p_value": None,
+            "is_significant": None,
+            "interpretation": f"Insufficient data (n={n})",
+        }
+
+    try:
+        if distribution == "norm":
+            # Standardize data
+            standardized = (arr - np.mean(arr)) / np.std(arr)
+            stat, p_value = stats.kstest(standardized, "norm")
+            dist_name = "normal"
+        elif distribution == "expon":
+            stat, p_value = stats.kstest(arr, "expon", args=(0, np.mean(arr)))
+            dist_name = "exponential"
+        elif distribution == "uniform":
+            stat, p_value = stats.kstest(arr, "uniform", args=(np.min(arr), np.max(arr) - np.min(arr)))
+            dist_name = "uniform"
+        else:
+            return {"test_name": "Kolmogorov-Smirnov", "interpretation": f"Unknown distribution: {distribution}"}
+
+        is_significant = p_value < alpha
+        fits = not is_significant
+
+        interpretation = (
+            f"KS test: Data {'fits' if fits else 'does NOT fit'} {dist_name} distribution "
+            f"(D={stat:.4f}, p={p_value:.4f})"
+        )
+
+        return {
+            "test_name": "Kolmogorov-Smirnov",
+            "distribution": dist_name,
+            "statistic": float(stat),
+            "p_value": float(p_value),
+            "fits_distribution": fits,
+            "interpretation": interpretation,
+        }
+    except Exception as e:
+        return {
+            "test_name": "Kolmogorov-Smirnov",
+            "statistic": None,
+            "p_value": None,
             "interpretation": f"Test failed: {e}",
         }
 
