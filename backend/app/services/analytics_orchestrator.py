@@ -154,36 +154,77 @@ def run_analysis(
     analysis_type: str,
     config: Optional[Dict] = None,
 ) -> Dict[str, Any]:
-    """Run the specified type of analysis."""
+    """Run the specified type of analysis with robust error handling."""
     config = config or {}
     target = config.get("target")
     treatment = config.get("treatment")
     time_col = config.get("time_col")
 
+    # Validate dataframe
+    if df is None or len(df) == 0:
+        return {
+            "analysis_type": analysis_type,
+            "error": "No data provided or empty dataframe",
+            "summary": {"status": "failed", "reason": "empty_data"},
+        }
+
     if analysis_type == "causal":
-        outcome = config.get("outcome") or target
-        return run_causal_analysis(
-            df,
-            treatment=treatment,
-            outcome=outcome,
-            confounders=config.get("confounders"),
-            config=config,
-        )
+        try:
+            outcome = config.get("outcome") or target
+            if not treatment:
+                return {
+                    "analysis_type": "causal",
+                    "error": "Treatment variable not specified",
+                    "summary": {"status": "failed", "reason": "missing_treatment"},
+                }
+            if not outcome:
+                return {
+                    "analysis_type": "causal",
+                    "error": "Outcome variable not specified",
+                    "summary": {"status": "failed", "reason": "missing_outcome"},
+                }
+            return run_causal_analysis(
+                df,
+                treatment=treatment,
+                outcome=outcome,
+                confounders=config.get("confounders"),
+                config=config,
+            )
+        except Exception as e:
+            return {
+                "analysis_type": "causal",
+                "error": f"Causal analysis failed: {str(e)}",
+                "summary": {"status": "failed", "reason": "exception"},
+            }
 
     elif analysis_type == "time_series":
-        return run_time_series_analysis(
-            df,
-            time_col=time_col,
-            target_col=target,
-            config=config,
-        )
+        try:
+            return run_time_series_analysis(
+                df,
+                time_col=time_col,
+                target_col=target,
+                config=config,
+            )
+        except Exception as e:
+            return {
+                "analysis_type": "time_series",
+                "error": f"Time series analysis failed: {str(e)}",
+                "summary": {"status": "failed", "reason": "exception"},
+            }
 
     elif analysis_type == "statistical":
-        return run_statistical_tests(
-            df,
-            target=target,
-            config=config,
-        )
+        try:
+            return run_statistical_tests(
+                df,
+                target=target,
+                config=config,
+            )
+        except Exception as e:
+            return {
+                "analysis_type": "statistical",
+                "error": f"Statistical analysis failed: {str(e)}",
+                "summary": {"status": "failed", "reason": "exception"},
+            }
 
     else:
         # Default: return basic info

@@ -3,6 +3,8 @@ import { Activity, TrendingUp, BarChart2, AlertCircle, CheckCircle, Clock, LineC
 
 interface Props {
   analytics?: {
+    // Error handling
+    error?: string
     // Causal inference
     treatment?: string
     outcome?: string
@@ -87,7 +89,11 @@ interface Props {
       is_significant?: boolean
       interpretation?: string
     }>
-    summary?: Record<string, unknown>
+    summary?: {
+      status?: string
+      reason?: string
+      [key: string]: unknown
+    }
   }
   analysisType?: string
 }
@@ -96,6 +102,9 @@ export function AdvancedAnalyticsView({ analytics, analysisType }: Props) {
   if (!analytics || Object.keys(analytics).length === 0) {
     return null
   }
+
+  // Check for error state
+  const hasError = analytics.error || analytics.summary?.status === 'failed'
 
   const isCausal = analysisType === 'causal' || analytics.effect_estimate || analytics.double_ml_estimate
   const isTimeSeries = analysisType === 'time_series' || analytics.stationarity || analytics.forecast || analytics.decomposition
@@ -110,6 +119,16 @@ export function AdvancedAnalyticsView({ analytics, analysisType }: Props) {
         {isTimeSeries && <span className="badge ml-2">Time Series</span>}
         {isStatistical && <span className="badge ml-2">Statistical</span>}
       </h3>
+
+      {/* Error State */}
+      {hasError && (
+        <div className="alert alert-warning mb-4">
+          <AlertCircle size={16} className="inline mr-2" />
+          <span className="text-sm">
+            {analytics.error || 'Analysis could not be completed. Some results may be unavailable.'}
+          </span>
+        </div>
+      )}
 
       {/* Causal Inference Results */}
       {isCausal && (
