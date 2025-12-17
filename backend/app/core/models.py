@@ -44,3 +44,4 @@ class ResultPayload(BaseModel):
     reproducibility: Optional[Dict[str, Any]] = None
     report_html: Optional[str] = None
     timings: Optional[Dict[str, Any]] = None
+    advanced_analytics: Optional[Dict[str, Any]] = None  # Causal, time series, statistical analysis

@@ -1,12 +1,13 @@
 import { useRouter } from 'next/router'
 import { useEffect, useState } from 'react'
-import { 
-  BarChart3, 
-  Brain, 
-  Scale, 
-  Download, 
-  FileText, 
-  GitBranch
+import {
+  BarChart3,
+  Brain,
+  Scale,
+  Download,
+  FileText,
+  GitBranch,
+  Activity
 } from 'lucide-react'
 import { KpiCard } from '../../components/KpiCard'
 import { ModelLeaderboard } from '../../components/ModelLeaderboard'
@@ -18,6 +19,7 @@ import { ExportButtons } from '../../components/ExportButtons'
 import { RouterPlanView } from '../../components/RouterPlanView'
 import { Tabs } from '../../components/Tabs'
 import { CollapsibleSection } from '../../components/CollapsibleSection'
+import { AdvancedAnalyticsView } from '../../components/AdvancedAnalyticsView'
 
 const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -54,6 +56,8 @@ export default function Results(){
   const reproducibility = result?.reproducibility || {}
   const routerPlan = result?.router_plan || manifest?.router_plan || {}
   const critique = result?.critique || {}
+  const advancedAnalytics = result?.advanced_analytics || {}
+  const analysisType = routerPlan?.analysis_type || routerPlan?.decisions?.analysis_type || 'predictive'
 
   const candidates = modeling?.candidates || []
   const task = modeling?.task || 'classification'
@@ -136,6 +140,13 @@ export default function Results(){
           icon: <Scale size={18} />,
           content: <FairnessChart fairness={fairness} />
         },
+        // Advanced Analytics tab (only shown when analytics data exists)
+        ...(Object.keys(advancedAnalytics).length > 0 ? [{
+          id: 'analytics',
+          label: 'Causal/Stats',
+          icon: <Activity size={18} />,
+          content: <AdvancedAnalyticsView analytics={advancedAnalytics} analysisType={analysisType} />
+        }] : []),
         {
           id: 'insights',
           label: 'AI Insights',

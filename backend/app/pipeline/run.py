@@ -947,6 +947,11 @@ def run_pipeline(
         "router_plan": (manifest or {}).get("router_plan"),
         "fairness": fair if isinstance(locals().get("fair"), dict) else {},
         "reproducibility": repro if isinstance(locals().get("repro"), dict) else {},
+        "advanced_analytics": (
+            advanced_analytics
+            if isinstance(locals().get("advanced_analytics"), dict) and advanced_analytics
+            else None
+        ),
     }
     # Record report duration start
     rmark = time.time()
