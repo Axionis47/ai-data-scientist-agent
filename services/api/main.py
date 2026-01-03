@@ -26,6 +26,7 @@ from packages.agent import (
 from packages.contracts import (
     AskQuestionRequest,
     AskQuestionResponse,
+    CausalEstimateArtifact,
     CausalReadinessReport,
     CausalSpecArtifact,
     ChecklistArtifact,
@@ -43,15 +44,21 @@ logger = logging.getLogger(__name__)
 
 # Environment
 APP_ENV = os.getenv("APP_ENV", "dev")
+GIT_SHA = os.getenv("GIT_SHA", "unknown")
+BUILD_TIME = os.getenv("BUILD_TIME", "unknown")
 
 app = FastAPI(title="SDLC API", version="0.1.0")
 
-# Storage directories
-STORAGE_DIR = Path(__file__).parent / "storage" / "contexts"
+# Storage directories - can be overridden via env var for testing
+STORAGE_BASE = Path(os.getenv("STORAGE_DIR", str(Path(__file__).parent / "storage")))
+STORAGE_DIR = STORAGE_BASE / "contexts"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
 
-DATASETS_DIR = Path(__file__).parent / "storage" / "datasets"
+DATASETS_DIR = STORAGE_BASE / "datasets"
 DATASETS_DIR.mkdir(parents=True, exist_ok=True)
+
+TRACES_DIR = STORAGE_BASE / "traces"
+TRACES_DIR.mkdir(parents=True, exist_ok=True)
 
 # Required headings (case-sensitive)
 REQUIRED_HEADINGS = [
@@ -95,6 +102,103 @@ def get_llm_client():
 async def health():
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+@app.get("/version")
+async def version():
+    """Version endpoint for deployment verification."""
+    return {
+        "git_sha": GIT_SHA,
+        "build_time": BUILD_TIME,
+        "app_env": APP_ENV,
+    }
+
+
+def persist_trace(
+    trace_id: str,
+    request: AskQuestionRequest,
+    final_state: dict,
+    artifacts: list,
+) -> Path:
+    """
+    Persist a trace file for observability.
+    Returns the path to the trace file.
+    """
+    timestamp = datetime.now(UTC).isoformat()
+
+    # Build diagnostics summary
+    diagnostics_summary = {"PASS": 0, "WARN": 0, "FAIL": 0, "key_failures": []}
+    for art in final_state.get("artifacts", []):
+        if art.get("type") == "diagnostic":
+            status = art.get("status", "FAIL")
+            diagnostics_summary[status] = diagnostics_summary.get(status, 0) + 1
+            if status == "FAIL":
+                diagnostics_summary["key_failures"].append(art.get("name", "unknown"))
+
+    # Extract estimation info if present
+    estimator_selected = None
+    n_used = None
+    estimate = None
+    ci_low = None
+    ci_high = None
+    for art in final_state.get("artifacts", []):
+        if art.get("type") == "causal_estimate":
+            estimator_selected = art.get("method")
+            n_used = art.get("n_used")
+            estimate = art.get("estimate")
+            ci_low = art.get("ci_low")
+            ci_high = art.get("ci_high")
+            break
+
+    # Build artifact inventory (sorted for determinism)
+    artifact_inventory = []
+    for art in artifacts:
+        art_info = {"type": getattr(art, "type", "unknown")}
+        if hasattr(art, "rows"):
+            art_info["row_count"] = len(art.rows)
+        if hasattr(art, "content"):
+            art_info["content_length"] = len(art.content)
+        if hasattr(art, "items"):
+            art_info["item_count"] = len(art.items)
+        artifact_inventory.append(art_info)
+    artifact_inventory.sort(key=lambda x: x["type"])
+
+    # Extract chunk IDs from trace events
+    chunk_ids = []
+    for event in final_state.get("trace_events", []):
+        if event.get("event_type") == "retrieval":
+            chunk_ids = event.get("payload", {}).get("chunk_ids", [])
+            break
+    chunk_ids.sort()  # Deterministic ordering
+
+    trace_data = {
+        "trace_id": trace_id,
+        "timestamp": timestamp,
+        "route": final_state.get("route", "ANALYSIS"),
+        "doc_id": request.doc_id,
+        "dataset_id": request.dataset_id,
+        "router_decision": {
+            "route": final_state.get("route", "ANALYSIS"),
+            "confidence": final_state.get("route_confidence", 0.0),
+            "reasons": sorted(final_state.get("route_reasons", [])),
+        },
+        "retrieved_chunk_ids": chunk_ids,
+        "diagnostics_summary": diagnostics_summary,
+        "estimator_selected": estimator_selected,
+        "n_used": n_used,
+        "estimate": estimate,
+        "ci_low": ci_low,
+        "ci_high": ci_high,
+        "artifact_inventory": artifact_inventory,
+    }
+
+    # Write trace file (deterministic JSON output)
+    trace_path = TRACES_DIR / f"{trace_id}.json"
+    with open(trace_path, "w") as f:
+        json.dump(trace_data, f, indent=2, sort_keys=True)
+
+    logger.info(f"Trace persisted: {trace_path}")
+    return trace_path
 
 
 def extract_text_from_docx(file_path: Path) -> str:
@@ -546,6 +650,25 @@ async def ask_question(request: AskQuestionRequest):
                 ready_for_estimation=art.get("ready_for_estimation", False),
                 recommended_estimators=art.get("recommended_estimators", []),
             ))
+        elif art_type == "causal_estimate":
+            artifacts.append(CausalEstimateArtifact(
+                method=art.get("method", "unknown"),
+                estimand=art.get("estimand", "ATE"),
+                estimate=art.get("estimate", 0.0),
+                ci_low=art.get("ci_low", 0.0),
+                ci_high=art.get("ci_high", 0.0),
+                n_used=art.get("n_used", 0),
+                covariates=art.get("covariates", []),
+                warnings=art.get("warnings", []),
+            ))
+
+    # Persist trace file (Phase 5)
+    trace_id = final_state.get("trace_id", "")
+    if trace_id:
+        try:
+            persist_trace(trace_id, request, final_state, artifacts)
+        except Exception as e:
+            logger.error(f"Failed to persist trace: {e}")
 
     return AskQuestionResponse(
         answer_text=final_state.get("llm_response") or "No response generated.",
@@ -555,6 +678,6 @@ async def ask_question(request: AskQuestionRequest):
             reasons=final_state.get("route_reasons", []),
         ),
         artifacts=artifacts,
-        trace_id=final_state.get("trace_id", ""),
+        trace_id=trace_id,
     )
 
