@@ -155,3 +155,22 @@ def test_health_endpoint():
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
+
+def test_version_endpoint():
+    """Test that version endpoint returns expected fields."""
+    response = client.get("/version")
+    assert response.status_code == 200
+
+    data = response.json()
+    # Verify required fields are present
+    assert "git_sha" in data
+    assert "build_time" in data
+    assert "app_env" in data
+
+    # Verify types
+    assert isinstance(data["git_sha"], str)
+    assert isinstance(data["build_time"], str)
+    assert isinstance(data["app_env"], str)
+
+    # In test environment, app_env should be dev
+    assert data["app_env"] == "dev"

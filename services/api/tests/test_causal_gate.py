@@ -526,6 +526,75 @@ class TestConfirmationsGating:
         assert result["confirmations_ok"] is False
 
 
+class TestTracePersistence:
+    """Phase 5: Tests for trace persistence."""
+
+    def test_ask_creates_trace_file(self):
+        """Calling /ask should create a trace file."""
+        from services.api.main import TRACES_DIR
+
+        dataset_id = f"test_trace_{uuid.uuid4().hex[:8]}"
+        try:
+            setup_test_dataset(
+                FIXTURES_DIR / "causal_binary_treatment.csv",
+                dataset_id
+            )
+
+            # First, upload a valid document
+            from services.api.tests.test_upload_context_doc import create_docx_bytes
+            content = {
+                "Dataset Overview": "Customer transactions for Q1 2024. " * 20,
+                "Target Use / Primary Questions": "Analyze trends and patterns. " * 20,
+                "Data Dictionary": "transaction_id, customer_id, amount. " * 20,
+                "Known Caveats": "Some missing values in customer_id. " * 20,
+            }
+            docx_bytes = create_docx_bytes(content)
+
+            import io
+            upload_resp = client.post(
+                "/upload_context_doc",
+                files={"file": ("test.docx", io.BytesIO(docx_bytes),
+                       "application/vnd.openxmlformats-officedocument.wordprocessingml.document")}
+            )
+            assert upload_resp.status_code == 200
+            doc_id = upload_resp.json()["doc_id"]
+
+            # Now call /ask
+            ask_resp = client.post(
+                "/ask",
+                json={
+                    "question": "What is the effect of treatment on outcome?",
+                    "doc_id": doc_id,
+                    "dataset_id": dataset_id,
+                    "causal_spec_override": {
+                        "treatment": "treatment",
+                        "outcome": "outcome",
+                        "confounders": ["age", "income"],
+                    },
+                }
+            )
+            assert ask_resp.status_code == 200
+            trace_id = ask_resp.json()["trace_id"]
+
+            # Verify trace file exists
+            trace_path = TRACES_DIR / f"{trace_id}.json"
+            assert trace_path.exists(), f"Trace file not found at {trace_path}"
+
+            # Verify trace content
+            with open(trace_path) as f:
+                trace_data = json.load(f)
+
+            assert trace_data["trace_id"] == trace_id
+            assert trace_data["doc_id"] == doc_id
+            assert trace_data["dataset_id"] == dataset_id
+            assert "timestamp" in trace_data
+            assert "route" in trace_data
+            assert "diagnostics_summary" in trace_data
+            assert "artifact_inventory" in trace_data
+        finally:
+            cleanup_test_dataset(dataset_id)
+
+
 class TestRunEstimationNode:
     """Phase 4: Tests for run_estimation_node."""
 

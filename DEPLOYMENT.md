@@ -72,29 +72,65 @@ docker pull ghcr.io/<owner>/sdlc-api:staging-abc1234
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `OPENAI_API_KEY` | OpenAI API key for embeddings/LLM | Yes (local) |
-| `GOOGLE_CLOUD_PROJECT` | GCP project ID for Vertex AI | Yes (staging/prod) |
-| `GOOGLE_CLOUD_REGION` | GCP region for Vertex AI | No (default: `us-central1`) |
-| `STORAGE_DIR` | Path to document storage | No (default: `/app/storage`) |
-| `DATASETS_DIR` | Path to dataset storage | No (default: `/app/datasets`) |
+| `APP_ENV` | Environment: dev, staging, prod | Yes |
+| `GIT_SHA` | Git commit SHA (set at build time) | Yes (staging/prod) |
+| `BUILD_TIME` | Build timestamp (set at build time) | No |
+| `GCP_PROJECT` | GCP project ID for Vertex AI | Yes (staging/prod) |
+| `GCP_LOCATION` | GCP region for Vertex AI | Yes (staging/prod) |
+| `VERTEX_LLM_MODEL` | Vertex AI LLM model | Yes (staging/prod) |
+| `VERTEX_EMBED_MODEL` | Vertex AI embedding model | Yes (staging/prod) |
+| `STORAGE_DIR` | Path to storage base dir | No (default: `./storage`) |
+| `TRACE_BUCKET` | GCS bucket for trace upload (optional) | No |
 
 **Note:** In staging/production, Vertex AI is used for embeddings and LLM. Locally, fake clients are used for testing.
 
-## Health Check
+## Health and Version Checks
 
 ```bash
+# Health check
 curl http://localhost:8080/health
-# Expected: {"status": "healthy"}
+# Expected: {"status": "ok"}
+
+# Version check (shows deployment info)
+curl http://localhost:8080/version
+# Expected: {"git_sha": "abc123...", "build_time": "2024-...", "app_env": "staging"}
 ```
 
 ## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/health` | GET | Health check |
+| `/health` | GET | Health check (returns 200 if healthy) |
+| `/version` | GET | Version info (git_sha, build_time, app_env) |
 | `/upload_context_doc` | POST | Upload context document (.docx) |
 | `/upload_dataset` | POST | Upload dataset (.csv) |
 | `/ask` | POST | Ask a question |
+
+## Trace Persistence
+
+Every `/ask` call persists a trace file to `storage/traces/{trace_id}.json` containing:
+- `trace_id`, `timestamp`, `route`, `doc_id`, `dataset_id`
+- `router_decision` (route, confidence, reasons)
+- `retrieved_chunk_ids` (sorted list)
+- `diagnostics_summary` (PASS/WARN/FAIL counts + key failures)
+- `estimator_selected`, `n_used`, `estimate`, `ci_low`, `ci_high` (if estimation ran)
+- `artifact_inventory` (list of artifact types with sizes)
+
+**Note:** Traces are stored locally. Cloud upload to GCS (via `TRACE_BUCKET`) is deferred.
+
+## Demo Script
+
+Run the staging demo script to verify all functionality:
+
+```bash
+# Default staging URL
+./scripts/demo_staging.sh
+
+# Custom URL
+STAGING_BASE_URL=https://my-staging.run.app ./scripts/demo_staging.sh
+```
+
+The script tests: health, version, doc upload, dataset upload, causal questions with/without confirmations.
 
 ## Smoke Test
 
