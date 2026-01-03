@@ -456,6 +456,11 @@ async def ask_question(request: AskQuestionRequest):
         if request.causal_spec_override:
             spec_override = request.causal_spec_override.model_dump()
 
+        # Convert causal_confirmations if provided (Phase 4)
+        confirmations = None
+        if request.causal_confirmations:
+            confirmations = request.causal_confirmations.model_dump()
+
         final_state = run_agent(
             question=request.question,
             doc_id=request.doc_id,
@@ -466,6 +471,7 @@ async def ask_question(request: AskQuestionRequest):
             session_id=request.session_id,
             datasets_dir=DATASETS_DIR,
             causal_spec_override=spec_override,
+            causal_confirmations=confirmations,
         )
     except Exception as e:
         logger.error(f"Agent error: {e}")
