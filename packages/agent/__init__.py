@@ -13,8 +13,8 @@ Provides:
 from .fake_clients import FakeEmbeddingsClient, FakeLLMClient
 from .graph import AgentState, run_agent
 from .interfaces import EmbeddingsClient, LLMClient
-from .retrieval import RetrievedChunk, embed_and_store_chunks, retrieve_top_k
 from .planner import PlaybookSelection, select_playbook
+from .retrieval import RetrievedChunk, embed_and_store_chunks, retrieve_top_k
 from .tools_eda import (
     EDAToolError,
     correlation,

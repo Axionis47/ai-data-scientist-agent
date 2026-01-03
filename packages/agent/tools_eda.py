@@ -14,7 +14,6 @@ import pandas as pd
 
 class EDAToolError(Exception):
     """Raised when an EDA tool encounters an error."""
-    pass
 
 
 def _load_dataset(dataset_id: str, datasets_dir: Path) -> pd.DataFrame:

@@ -5,13 +5,14 @@ All tests use Fake clients - no network calls.
 """
 
 import json
+
+# Adjust path for imports
+import sys
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
-# Adjust path for imports
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from services.api.main import DATASETS_DIR, STORAGE_DIR, app
@@ -46,9 +47,10 @@ def uploaded_dataset(sample_csv_path):
 @pytest.fixture
 def uploaded_context_doc():
     """Create a minimal context doc for testing."""
-    from docx import Document
-    import tempfile
     import os
+    import tempfile
+
+    from docx import Document
 
     # Create a valid docx with enough content (>500 chars)
     doc = Document()
@@ -186,8 +188,8 @@ class TestAskWithPlaybooks:
         assert response.status_code == 200
         data = response.json()
 
-        # Should have at least one table artifact from the groupby
-        table_artifacts = [a for a in data["artifacts"] if a.get("type") == "table"]
-        # May have table artifacts if playbook was selected correctly
+        # Should route to ANALYSIS
         assert data["router_decision"]["route"] == "ANALYSIS"
+        # May have table artifacts if playbook was selected correctly
+        assert "artifacts" in data
 
