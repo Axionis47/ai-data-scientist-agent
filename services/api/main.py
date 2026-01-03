@@ -8,8 +8,10 @@ import logging
 import os
 import sys
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 
+import pandas as pd
 from docx import Document
 from fastapi import FastAPI, File, HTTPException, UploadFile
 
@@ -40,9 +42,12 @@ APP_ENV = os.getenv("APP_ENV", "dev")
 
 app = FastAPI(title="SDLC API", version="0.1.0")
 
-# Storage directory
+# Storage directories
 STORAGE_DIR = Path(__file__).parent / "storage" / "contexts"
 STORAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+DATASETS_DIR = Path(__file__).parent / "storage" / "datasets"
+DATASETS_DIR.mkdir(parents=True, exist_ok=True)
 
 # Required headings (case-sensitive)
 REQUIRED_HEADINGS = [
@@ -244,14 +249,164 @@ async def upload_context_doc(file: UploadFile = File(...)):
         )
 
 
+def infer_column_type(series: pd.Series) -> str:
+    """Infer a human-readable type for a pandas column."""
+    dtype_str = str(series.dtype)
+    if pd.api.types.is_integer_dtype(series):
+        return "integer"
+    elif pd.api.types.is_float_dtype(series):
+        return "float"
+    elif pd.api.types.is_bool_dtype(series):
+        return "boolean"
+    elif pd.api.types.is_datetime64_any_dtype(series):
+        return "datetime"
+    elif dtype_str == "object":
+        # Check if it looks like a date string
+        sample = series.dropna().head(10)
+        if len(sample) > 0:
+            try:
+                pd.to_datetime(sample, errors="raise")
+                return "datetime_string"
+            except (ValueError, TypeError):
+                pass
+        return "string"
+    else:
+        return dtype_str
+
+
+def compute_profile(df: pd.DataFrame) -> dict:
+    """Compute a deterministic profile of the dataset."""
+    profile = {"columns": {}}
+
+    for col in sorted(df.columns):
+        series = df[col]
+        col_profile = {
+            "missing_count": int(series.isna().sum()),
+            "missing_pct": round(float(series.isna().mean() * 100), 2),
+        }
+
+        if pd.api.types.is_numeric_dtype(series):
+            desc = series.describe()
+            col_profile["stats"] = {
+                "count": int(desc.get("count", 0)),
+                "mean": round(float(desc.get("mean", 0)), 4),
+                "std": round(float(desc.get("std", 0)), 4),
+                "min": round(float(desc.get("min", 0)), 4),
+                "25%": round(float(desc.get("25%", 0)), 4),
+                "50%": round(float(desc.get("50%", 0)), 4),
+                "75%": round(float(desc.get("75%", 0)), 4),
+                "max": round(float(desc.get("max", 0)), 4),
+            }
+        else:
+            # Categorical: top 10 values
+            value_counts = series.value_counts().head(10)
+            col_profile["top_values"] = [
+                {"value": str(val), "count": int(cnt)}
+                for val, cnt in value_counts.items()
+            ]
+
+        profile["columns"][col] = col_profile
+
+    return profile
+
+
 @app.post("/upload_dataset", response_model=UploadDatasetResponse)
 async def upload_dataset(file: UploadFile = File(...)):
-    """Upload a dataset (stub implementation)."""
+    """
+    Upload and profile a CSV dataset.
+
+    - Computes sha256 hash
+    - Stores data.csv, metadata.json, profile.json
+    - Returns dataset info including column types
+    """
+    # Check file extension
+    if not file.filename or not file.filename.endswith(".csv"):
+        raise HTTPException(
+            status_code=415,
+            detail={"error": "File must be a .csv (CSV file)"}
+        )
+
     dataset_id = str(uuid.uuid4())
-    return UploadDatasetResponse(
-        dataset_id=dataset_id,
-        dataset_hash=None
-    )
+    dataset_dir = DATASETS_DIR / dataset_id
+    dataset_dir.mkdir(parents=True, exist_ok=True)
+
+    try:
+        # Read file content
+        content = await file.read()
+
+        # Compute hash
+        dataset_hash = hashlib.sha256(content).hexdigest()
+
+        # Save raw CSV
+        csv_path = dataset_dir / "data.csv"
+        with open(csv_path, "wb") as f:
+            f.write(content)
+
+        # Parse with pandas
+        try:
+            df = pd.read_csv(csv_path)
+        except Exception as e:
+            raise HTTPException(
+                status_code=422,
+                detail={"error": f"Failed to parse CSV: {e!s}"}
+            )
+
+        n_rows, n_cols = df.shape
+        column_names = list(df.columns)
+
+        # Infer types
+        inferred_types = {col: infer_column_type(df[col]) for col in column_names}
+
+        # Create metadata
+        metadata = {
+            "dataset_id": dataset_id,
+            "dataset_hash": dataset_hash,
+            "n_rows": n_rows,
+            "n_cols": n_cols,
+            "column_names": column_names,
+            "inferred_types": inferred_types,
+            "created_at": datetime.now(UTC).isoformat(),
+        }
+
+        # Save metadata
+        metadata_path = dataset_dir / "metadata.json"
+        with open(metadata_path, "w") as f:
+            json.dump(metadata, f, indent=2)
+
+        # Compute and save profile
+        profile = compute_profile(df)
+        profile_path = dataset_dir / "profile.json"
+        with open(profile_path, "w") as f:
+            json.dump(profile, f, indent=2)
+
+        logger.info(f"Uploaded dataset {dataset_id}: {n_rows} rows, {n_cols} cols")
+
+        return UploadDatasetResponse(
+            dataset_id=dataset_id,
+            dataset_hash=dataset_hash,
+            n_rows=n_rows,
+            n_cols=n_cols,
+            column_names=column_names,
+            inferred_types=inferred_types,
+            status="profiled",
+            errors=None,
+        )
+
+    except HTTPException:
+        # Clean up on validation error
+        if dataset_dir.exists():
+            import shutil
+            shutil.rmtree(dataset_dir)
+        raise
+    except Exception as e:
+        # Clean up on any error
+        if dataset_dir.exists():
+            import shutil
+            shutil.rmtree(dataset_dir)
+        raise HTTPException(
+            status_code=500,
+            detail={"error": f"Failed to process dataset: {e!s}"}
+        )
 
 
 @app.post("/ask", response_model=AskQuestionResponse)

@@ -18,9 +18,15 @@ class UploadContextDocResponse(BaseModel):
 
 
 class UploadDatasetResponse(BaseModel):
-    """Response from uploading a dataset (stub for now)."""
+    """Response from uploading a dataset."""
     dataset_id: str
-    dataset_hash: Optional[str] = None
+    dataset_hash: str
+    n_rows: int
+    n_cols: int
+    column_names: list[str]
+    inferred_types: dict[str, str]
+    status: Literal["profiled", "failed"]
+    errors: Optional[list[str]] = None
 
 
 class RouterDecision(BaseModel):
