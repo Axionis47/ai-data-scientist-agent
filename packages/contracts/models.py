@@ -7,6 +7,32 @@ from typing import Literal
 from pydantic import BaseModel
 
 # =============================================================================
+# Phase 4: Causal Confirmations and Estimation Artifacts
+# =============================================================================
+
+
+class CausalConfirmations(BaseModel):
+    """User confirmations required before causal estimation can proceed."""
+    assignment_mechanism: Literal["randomized", "policy", "self_selected", "unknown"] = "unknown"
+    interference: Literal["no_interference", "possible_interference", "unknown"] = "unknown"
+    missing_data_policy: Literal["listwise_delete", "simple_impute", "unknown"] = "unknown"
+    ok_to_estimate: bool = False  # Must be True to produce ATE
+
+
+class CausalEstimateArtifact(BaseModel):
+    """Causal effect estimate artifact."""
+    type: Literal["causal_estimate"] = "causal_estimate"
+    method: str  # e.g., "regression_adjustment", "ipw"
+    estimand: str  # e.g., "ATE", "ATT"
+    estimate: float  # Point estimate
+    ci_low: float  # 95% CI lower bound
+    ci_high: float  # 95% CI upper bound
+    n_used: int  # Number of observations used
+    covariates: list[str]  # Covariates used in adjustment
+    warnings: list[str] = []  # Any warnings about the estimate
+
+
+# =============================================================================
 # Phase 3: Causal Analysis Artifacts
 # =============================================================================
 
@@ -98,7 +124,7 @@ class ChecklistArtifact(BaseModel):
     items: list[str]
 
 
-# Discriminated union for artifacts (Phase 3: added causal artifacts)
+# Discriminated union for artifacts (Phase 4: added causal estimate)
 Artifact = (
     TextArtifact
     | TableArtifact
@@ -106,6 +132,7 @@ Artifact = (
     | CausalSpecArtifact
     | DiagnosticArtifact
     | CausalReadinessReport
+    | CausalEstimateArtifact
 )
 
 
@@ -134,6 +161,8 @@ class AskQuestionRequest(BaseModel):
     session_id: str | None = None
     # Phase 3: Optional causal specification override
     causal_spec_override: CausalSpecOverride | None = None
+    # Phase 4: User confirmations for causal estimation
+    causal_confirmations: CausalConfirmations | None = None
 
 
 class AskQuestionResponse(BaseModel):

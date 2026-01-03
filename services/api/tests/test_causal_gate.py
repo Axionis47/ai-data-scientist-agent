@@ -1,5 +1,5 @@
 """
-Tests for Phase 3 Causal Safety Gate.
+Tests for Phase 3 Causal Safety Gate and Phase 4 Causal Estimation.
 
 All tests use fake clients (no network/Vertex calls).
 Tests verify:
@@ -7,6 +7,8 @@ Tests verify:
 2. FAIL when treatment is non-binary
 3. PASS when conditions are met
 4. No ATE is ever returned (Phase 3)
+5. ATE is returned with confirmations (Phase 4)
+6. Estimation blocked without confirmations (Phase 4)
 """
 
 import json
@@ -23,11 +25,18 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from packages.agent.causal_gate import causal_readiness_gate
+from packages.agent.graph import check_confirmations_node, run_estimation_node
 from packages.agent.tools_causal import (
     balance_check_smd,
     check_missingness,
     check_positivity_overlap,
     check_treatment_type,
+)
+from packages.agent.tools_causal_estimation import (
+    ipw_ate,
+    regression_adjustment_ate,
+    run_causal_estimation,
+    select_estimator,
 )
 from services.api.main import app
 
@@ -332,4 +341,237 @@ class TestCausalReadinessGate:
             assert len(matches) == 0, f"Found numeric ATE in response: {matches}"
         finally:
             cleanup_test_dataset(dataset_id)
+
+
+class TestCausalEstimationTools:
+    """Phase 4: Tests for causal estimation tools."""
+
+    def test_regression_adjustment_ate_deterministic(self):
+        """Regression adjustment should produce deterministic results."""
+        dataset_id = f"test_reg_{uuid.uuid4().hex[:8]}"
+        try:
+            datasets_dir = setup_test_dataset(
+                FIXTURES_DIR / "causal_binary_treatment.csv",
+                dataset_id
+            )
+
+            result1 = regression_adjustment_ate(
+                dataset_id, "treatment", "outcome", ["age", "income"], datasets_dir
+            )
+            result2 = regression_adjustment_ate(
+                dataset_id, "treatment", "outcome", ["age", "income"], datasets_dir
+            )
+
+            # Results should be identical
+            assert result1["estimate_artifact"]["estimate"] == result2["estimate_artifact"]["estimate"]
+            assert result1["estimate_artifact"]["ci_low"] == result2["estimate_artifact"]["ci_low"]
+            assert result1["estimate_artifact"]["ci_high"] == result2["estimate_artifact"]["ci_high"]
+        finally:
+            cleanup_test_dataset(dataset_id)
+
+    def test_ipw_ate_deterministic(self):
+        """IPW should produce deterministic results."""
+        dataset_id = f"test_ipw_{uuid.uuid4().hex[:8]}"
+        try:
+            datasets_dir = setup_test_dataset(
+                FIXTURES_DIR / "causal_binary_treatment.csv",
+                dataset_id
+            )
+
+            result1 = ipw_ate(
+                dataset_id, "treatment", "outcome", ["age", "income"], datasets_dir
+            )
+            result2 = ipw_ate(
+                dataset_id, "treatment", "outcome", ["age", "income"], datasets_dir
+            )
+
+            # Results should be identical
+            assert result1["estimate_artifact"]["estimate"] == result2["estimate_artifact"]["estimate"]
+            assert result1["estimate_artifact"]["ci_low"] == result2["estimate_artifact"]["ci_low"]
+        finally:
+            cleanup_test_dataset(dataset_id)
+
+    def test_estimate_artifact_structure(self):
+        """Estimate artifact should have required fields."""
+        dataset_id = f"test_struct_{uuid.uuid4().hex[:8]}"
+        try:
+            datasets_dir = setup_test_dataset(
+                FIXTURES_DIR / "causal_binary_treatment.csv",
+                dataset_id
+            )
+
+            result = regression_adjustment_ate(
+                dataset_id, "treatment", "outcome", ["age"], datasets_dir
+            )
+
+            artifact = result["estimate_artifact"]
+            assert artifact["type"] == "causal_estimate"
+            assert artifact["method"] == "regression_adjustment"
+            assert artifact["estimand"] == "ATE"
+            assert "estimate" in artifact
+            assert "ci_low" in artifact
+            assert "ci_high" in artifact
+            assert "n_used" in artifact
+            assert artifact["ci_low"] <= artifact["estimate"] <= artifact["ci_high"]
+        finally:
+            cleanup_test_dataset(dataset_id)
+
+    def test_select_estimator_logic(self):
+        """Estimator selection should follow rules."""
+        # IPW preferred when positivity PASS and covariates exist
+        assert select_estimator("PASS", 3) == "ipw"
+
+        # Regression preferred when positivity fails
+        assert select_estimator("WARN", 3) == "regression_adjustment"
+        assert select_estimator("FAIL", 3) == "regression_adjustment"
+
+        # Regression preferred when no covariates
+        assert select_estimator("PASS", 0) == "regression_adjustment"
+
+    def test_run_causal_estimation_unified(self):
+        """run_causal_estimation should dispatch to correct method."""
+        dataset_id = f"test_unified_{uuid.uuid4().hex[:8]}"
+        try:
+            datasets_dir = setup_test_dataset(
+                FIXTURES_DIR / "causal_binary_treatment.csv",
+                dataset_id
+            )
+
+            # Test regression method
+            result_reg = run_causal_estimation(
+                dataset_id, "treatment", "outcome", ["age"], datasets_dir,
+                method="regression_adjustment"
+            )
+            assert result_reg["estimate_artifact"]["method"] == "regression_adjustment"
+
+            # Test IPW method
+            result_ipw = run_causal_estimation(
+                dataset_id, "treatment", "outcome", ["age"], datasets_dir,
+                method="ipw"
+            )
+            assert result_ipw["estimate_artifact"]["method"] == "ipw"
+            assert "propensity_summary" in result_ipw
+        finally:
+            cleanup_test_dataset(dataset_id)
+
+
+class TestConfirmationsGating:
+    """Phase 4: Tests for confirmations gating logic."""
+
+    def test_check_confirmations_no_confirmations(self):
+        """Should request confirmations when none provided."""
+        state = {
+            "causal_readiness_status": "PASS",
+            "causal_confirmations": None,
+            "trace_events": [],
+            "artifacts": [],
+        }
+
+        result = check_confirmations_node(state)
+
+        assert result["confirmations_ok"] is False
+        assert result["route"] == "NEEDS_CLARIFICATION"
+        # Should have checklist artifact
+        checklist = [a for a in result["artifacts"] if a.get("type") == "checklist"]
+        assert len(checklist) > 0
+
+    def test_check_confirmations_ok_to_estimate_false(self):
+        """Should block estimation when ok_to_estimate=False."""
+        state = {
+            "causal_readiness_status": "PASS",
+            "causal_confirmations": {
+                "assignment_mechanism": "randomized",
+                "interference_assumption": "no_interference",
+                "missing_data_policy": "listwise_delete",
+                "ok_to_estimate": False,
+            },
+            "trace_events": [],
+            "artifacts": [],
+        }
+
+        result = check_confirmations_node(state)
+
+        assert result["confirmations_ok"] is False
+        assert "Declined" in result["artifacts"][-1]["content"]
+
+    def test_check_confirmations_ok_to_estimate_true(self):
+        """Should allow estimation when ok_to_estimate=True."""
+        state = {
+            "causal_readiness_status": "PASS",
+            "causal_confirmations": {
+                "assignment_mechanism": "randomized",
+                "interference_assumption": "no_interference",
+                "missing_data_policy": "listwise_delete",
+                "ok_to_estimate": True,
+            },
+            "trace_events": [],
+            "artifacts": [],
+        }
+
+        result = check_confirmations_node(state)
+
+        assert result["confirmations_ok"] is True
+
+    def test_check_confirmations_readiness_not_pass(self):
+        """Should block estimation when readiness is not PASS."""
+        state = {
+            "causal_readiness_status": "WARN",
+            "causal_confirmations": {"ok_to_estimate": True},
+            "trace_events": [],
+            "artifacts": [],
+        }
+
+        result = check_confirmations_node(state)
+
+        assert result["confirmations_ok"] is False
+
+
+class TestRunEstimationNode:
+    """Phase 4: Tests for run_estimation_node."""
+
+    def test_run_estimation_with_confirmations(self):
+        """Should produce estimate when confirmations OK."""
+        dataset_id = f"test_est_{uuid.uuid4().hex[:8]}"
+        try:
+            datasets_dir = setup_test_dataset(
+                FIXTURES_DIR / "causal_binary_treatment.csv",
+                dataset_id
+            )
+
+            state = {
+                "confirmations_ok": True,
+                "dataset_id": dataset_id,
+                "causal_report": {
+                    "spec": {
+                        "treatment": "treatment",
+                        "outcome": "outcome",
+                        "confounders_selected": ["age", "income"],
+                    },
+                    "diagnostics": [
+                        {"name": "positivity_check", "status": "PASS"},
+                    ],
+                },
+                "trace_events": [],
+                "artifacts": [],
+            }
+
+            result = run_estimation_node(state, datasets_dir)
+
+            assert "causal_estimate" in result
+            assert result["causal_estimate"]["type"] == "causal_estimate"
+            assert "estimate" in result["causal_estimate"]
+            assert "ATE" in result["llm_response"]
+        finally:
+            cleanup_test_dataset(dataset_id)
+
+    def test_run_estimation_skipped_without_confirmations(self):
+        """Should skip estimation when confirmations not OK."""
+        state = {
+            "confirmations_ok": False,
+            "trace_events": [],
+        }
+
+        result = run_estimation_node(state, Path("/tmp"))
+
+        assert "causal_estimate" not in result
 

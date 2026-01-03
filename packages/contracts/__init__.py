@@ -7,6 +7,8 @@ from .models import (
     Artifact,
     AskQuestionRequest,
     AskQuestionResponse,
+    CausalConfirmations,
+    CausalEstimateArtifact,
     CausalReadinessReport,
     CausalSpecArtifact,
     CausalSpecOverride,
@@ -36,5 +38,8 @@ __all__ = [
     "DiagnosticArtifact",
     "CausalReadinessReport",
     "CausalSpecOverride",
+    # Phase 4: Causal estimation
+    "CausalConfirmations",
+    "CausalEstimateArtifact",
 ]
 

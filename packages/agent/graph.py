@@ -2,6 +2,7 @@
 LangGraph-based agent graph for RAG question answering with EDA playbooks.
 
 Phase 3: Added causal gate integration for CAUSAL route.
+Phase 4: Added causal estimation with confirmations gating.
 """
 
 import json
@@ -12,12 +13,13 @@ from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
 
-from packages.contracts.models import CausalSpecOverride
+from packages.contracts.models import CausalConfirmations, CausalSpecOverride
 
 from .causal_gate import causal_readiness_gate
 from .interfaces import EmbeddingsClient, LLMClient
 from .planner import select_playbook
 from .retrieval import retrieve_top_k
+from .tools_causal_estimation import run_causal_estimation, select_estimator
 from .tools_eda import (
     EDAToolError,
     correlation,
@@ -55,6 +57,11 @@ class AgentState(TypedDict, total=False):
     causal_spec_override: dict | None  # User-provided causal specification
     causal_readiness_status: str  # PASS/WARN/FAIL
     causal_report: dict | None  # CausalReadinessReport as dict
+
+    # Causal Estimation (Phase 4)
+    causal_confirmations: dict | None  # CausalConfirmations as dict
+    confirmations_ok: bool  # True if confirmations valid and ok_to_estimate=True
+    causal_estimate: dict | None  # CausalEstimateArtifact as dict
 
     # Artifacts
     artifacts: list[dict]
@@ -564,6 +571,210 @@ def causal_decide_next_node(state: AgentState) -> dict:
             "llm_response": message,
             "artifacts": artifacts,
             "trace_events": trace_events,
+            "confirmations_ok": False,  # Need confirmations before estimation
+        }
+
+
+def check_confirmations_node(state: AgentState) -> dict:
+    """
+    Check if user has provided required confirmations for causal estimation.
+
+    Phase 4: Estimation only proceeds if:
+    1. causal_readiness_status == PASS
+    2. causal_confirmations is provided
+    3. causal_confirmations.ok_to_estimate == True
+    4. Treatment is binary (already checked in gate)
+    """
+    trace_events = state.get("trace_events", [])
+    artifacts = state.get("artifacts", [])
+
+    confirmations = state.get("causal_confirmations")
+    readiness_status = state.get("causal_readiness_status", "FAIL")
+
+    trace_events = trace_events + [{
+        "event_type": "CONFIRMATIONS_CHECKED",
+        "timestamp": datetime.now(UTC).isoformat(),
+        "payload": {
+            "confirmations_present": confirmations is not None,
+            "readiness_status": readiness_status,
+        },
+    }]
+
+    # If readiness is not PASS, cannot estimate
+    if readiness_status != "PASS":
+        return {
+            "confirmations_ok": False,
+            "trace_events": trace_events,
+        }
+
+    # If no confirmations provided, ask for them
+    if not confirmations:
+        missing_questions = [
+            "To proceed with causal estimation, please confirm:",
+            "1. What is the assignment mechanism? (randomized, policy, self_selected, unknown)",
+            "2. Is there potential for interference between units? (no_interference, possible_interference, unknown)",
+            "3. What is your missing data policy? (listwise_delete, simple_impute, unknown)",
+            "4. Do you authorize estimation to proceed? (ok_to_estimate: true/false)",
+        ]
+        artifacts.append({
+            "type": "checklist",
+            "items": missing_questions,
+        })
+        artifacts.append({
+            "type": "text",
+            "content": "⚠️ **Confirmations Required**\n\nPlease provide causal_confirmations in your request to proceed with estimation.",
+        })
+        return {
+            "confirmations_ok": False,
+            "route": "NEEDS_CLARIFICATION",
+            "llm_response": "Please provide confirmations to proceed with causal estimation.",
+            "artifacts": artifacts,
+            "trace_events": trace_events,
+        }
+
+    # Check if ok_to_estimate is True
+    ok_to_estimate = confirmations.get("ok_to_estimate", False)
+    if not ok_to_estimate:
+        artifacts.append({
+            "type": "text",
+            "content": "❌ **Estimation Declined**\n\nUser set ok_to_estimate=False. Estimation will not proceed.",
+        })
+        return {
+            "confirmations_ok": False,
+            "route": "NEEDS_CLARIFICATION",
+            "llm_response": "Estimation declined by user (ok_to_estimate=False).",
+            "artifacts": artifacts,
+            "trace_events": trace_events,
+        }
+
+    # All checks passed
+    return {
+        "confirmations_ok": True,
+        "trace_events": trace_events,
+    }
+
+
+def run_estimation_node(state: AgentState, datasets_dir: Path) -> dict:
+    """
+    Run causal estimation if confirmations are OK.
+
+    Phase 4: Produces CausalEstimateArtifact with ATE and CI.
+    """
+    trace_events = state.get("trace_events", [])
+    artifacts = state.get("artifacts", [])
+
+    confirmations_ok = state.get("confirmations_ok", False)
+    if not confirmations_ok:
+        return {"trace_events": trace_events}
+
+    # Get causal spec from report
+    causal_report = state.get("causal_report", {})
+    spec = causal_report.get("spec", {})
+    treatment = spec.get("treatment")
+    outcome = spec.get("outcome")
+    confounders = spec.get("confounders_selected", [])
+    dataset_id = state.get("dataset_id")
+
+    if not all([treatment, outcome, dataset_id]):
+        artifacts.append({
+            "type": "text",
+            "content": "❌ Cannot run estimation: missing treatment, outcome, or dataset.",
+        })
+        return {
+            "artifacts": artifacts,
+            "trace_events": trace_events,
+        }
+
+    # Get diagnostic status to select estimator
+    diagnostics = causal_report.get("diagnostics", [])
+    positivity_status = "PASS"
+    for diag in diagnostics:
+        if diag.get("name") == "positivity_check":
+            positivity_status = diag.get("status", "PASS")
+            break
+
+    # Select estimator
+    method = select_estimator(positivity_status, len(confounders))
+
+    try:
+        result = run_causal_estimation(
+            dataset_id=dataset_id,
+            treatment_col=treatment,
+            outcome_col=outcome,
+            covariates=confounders,
+            datasets_dir=datasets_dir,
+            method=method,
+        )
+
+        estimate_artifact = result.get("estimate_artifact", {})
+
+        # Add estimate artifact
+        artifacts.append(estimate_artifact)
+
+        # Add propensity summary if IPW
+        if "propensity_summary" in result:
+            artifacts.append(result["propensity_summary"])
+
+        trace_events = trace_events + [{
+            "event_type": "ESTIMATION_RAN",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "payload": {
+                "method": method,
+                "n_used": estimate_artifact.get("n_used", 0),
+                "estimate": estimate_artifact.get("estimate"),
+                "ci_low": estimate_artifact.get("ci_low"),
+                "ci_high": estimate_artifact.get("ci_high"),
+            },
+        }]
+
+        # Build summary text
+        ate = estimate_artifact.get("estimate", 0)
+        ci_low = estimate_artifact.get("ci_low", 0)
+        ci_high = estimate_artifact.get("ci_high", 0)
+        n_used = estimate_artifact.get("n_used", 0)
+        warnings = estimate_artifact.get("warnings", [])
+
+        summary = f"""✅ **Causal Effect Estimate**
+
+**Method:** {method.replace('_', ' ').title()}
+**Estimand:** Average Treatment Effect (ATE)
+
+**Result:**
+- **ATE = {ate:.4f}** (95% CI: [{ci_low:.4f}, {ci_high:.4f}])
+- Observations used: {n_used}
+- Covariates adjusted: {confounders if confounders else 'None'}
+
+**Interpretation:**
+On average, receiving treatment is associated with a {abs(ate):.4f} {'increase' if ate > 0 else 'decrease'} in the outcome, holding confounders constant.
+"""
+        if warnings:
+            summary += f"\n**Warnings:** {', '.join(warnings)}"
+
+        artifacts.append({
+            "type": "text",
+            "content": summary,
+        })
+
+        return {
+            "causal_estimate": estimate_artifact,
+            "llm_response": summary,
+            "artifacts": artifacts,
+            "trace_events": trace_events,
+        }
+
+    except Exception as e:
+        trace_events = trace_events + [{
+            "event_type": "ESTIMATION_RAN",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "payload": {"error": str(e)},
+        }]
+        artifacts.append({
+            "type": "text",
+            "content": f"❌ Estimation failed: {e}",
+        })
+        return {
+            "artifacts": artifacts,
+            "trace_events": trace_events,
         }
 
 
@@ -605,6 +816,10 @@ def create_agent_graph(
     graph.add_node("causal_gate", lambda s: causal_gate_node(s, datasets_dir))
     graph.add_node("causal_decide_next", causal_decide_next_node)
 
+    # Phase 4: Causal estimation nodes
+    graph.add_node("check_confirmations", check_confirmations_node)
+    graph.add_node("run_estimation", lambda s: run_estimation_node(s, datasets_dir))
+
     # Define edges
     graph.set_entry_point("router")
 
@@ -627,9 +842,41 @@ def create_agent_graph(
         }
     )
 
-    # Causal gate flow
+    # Causal gate flow: gate -> decide -> check confirmations -> estimation -> response
     graph.add_edge("causal_gate", "causal_decide_next")
-    graph.add_edge("causal_decide_next", "build_response")
+
+    # After causal_decide_next, check if we should proceed to estimation
+    def route_after_causal_decide(state: AgentState) -> str:
+        readiness = state.get("causal_readiness_status", "FAIL")
+        if readiness == "PASS":
+            return "check_confirmations"
+        return "build_response"
+
+    graph.add_conditional_edges(
+        "causal_decide_next",
+        route_after_causal_decide,
+        {
+            "check_confirmations": "check_confirmations",
+            "build_response": "build_response",
+        }
+    )
+
+    # After check_confirmations, run estimation if OK
+    def route_after_confirmations(state: AgentState) -> str:
+        if state.get("confirmations_ok", False):
+            return "run_estimation"
+        return "build_response"
+
+    graph.add_conditional_edges(
+        "check_confirmations",
+        route_after_confirmations,
+        {
+            "run_estimation": "run_estimation",
+            "build_response": "build_response",
+        }
+    )
+
+    graph.add_edge("run_estimation", "build_response")
 
     # After retrieval, select and execute playbook, then compose prompt
     graph.add_edge("retrieve_context", "select_playbook")
@@ -652,6 +899,7 @@ def run_agent(
     session_id: str | None = None,
     datasets_dir: Path | None = None,
     causal_spec_override: CausalSpecOverride | dict | None = None,
+    causal_confirmations: CausalConfirmations | dict | None = None,
 ) -> AgentState:
     """
     Run the agent graph and return the final state.
@@ -666,6 +914,7 @@ def run_agent(
         session_id: Optional session ID
         datasets_dir: Optional datasets directory path
         causal_spec_override: Optional causal specification override (Phase 3)
+        causal_confirmations: Optional causal confirmations for estimation (Phase 4)
 
     Returns:
         Final AgentState (dict) with response
@@ -681,6 +930,14 @@ def run_agent(
             spec_override_dict = causal_spec_override
         else:
             spec_override_dict = causal_spec_override.model_dump()
+
+    # Convert CausalConfirmations to dict if needed
+    confirmations_dict = None
+    if causal_confirmations is not None:
+        if isinstance(causal_confirmations, dict):
+            confirmations_dict = causal_confirmations
+        else:
+            confirmations_dict = causal_confirmations.model_dump()
 
     initial_state: AgentState = {
         "question": question,
@@ -702,6 +959,9 @@ def run_agent(
         "causal_spec_override": spec_override_dict,
         "causal_readiness_status": "",
         "causal_report": None,
+        "causal_confirmations": confirmations_dict,
+        "confirmations_ok": False,
+        "causal_estimate": None,
     }
 
     final_state = graph.invoke(initial_state)
