@@ -26,7 +26,10 @@ from packages.agent import (
 from packages.contracts import (
     AskQuestionRequest,
     AskQuestionResponse,
+    CausalReadinessReport,
+    CausalSpecArtifact,
     ChecklistArtifact,
+    DiagnosticArtifact,
     RouterDecision,
     TableArtifact,
     TextArtifact,
@@ -448,6 +451,11 @@ async def ask_question(request: AskQuestionRequest):
 
     # Run the agent
     try:
+        # Convert causal_spec_override if provided
+        spec_override = None
+        if request.causal_spec_override:
+            spec_override = request.causal_spec_override.model_dump()
+
         final_state = run_agent(
             question=request.question,
             doc_id=request.doc_id,
@@ -457,6 +465,7 @@ async def ask_question(request: AskQuestionRequest):
             dataset_id=request.dataset_id,
             session_id=request.session_id,
             datasets_dir=DATASETS_DIR,
+            causal_spec_override=spec_override,
         )
     except Exception as e:
         logger.error(f"Agent error: {e}")
@@ -469,18 +478,68 @@ async def ask_question(request: AskQuestionRequest):
     for event in final_state.get("trace_events", []):
         logger.info(f"TraceEvent: {event['event_type']} - {event['payload']}")
 
-    # Convert artifacts to Pydantic models
+    # Convert artifacts to Pydantic models (Phase 3: added causal artifact types)
     artifacts = []
     for art in final_state.get("artifacts", []):
-        if art.get("type") == "text":
+        art_type = art.get("type", "")
+        if art_type == "text":
             artifacts.append(TextArtifact(content=art["content"]))
-        elif art.get("type") == "table":
+        elif art_type == "table":
             artifacts.append(TableArtifact(
                 headers=art.get("headers", []),
                 rows=art.get("rows", []),
             ))
-        elif art.get("type") == "checklist":
+        elif art_type == "checklist":
             artifacts.append(ChecklistArtifact(items=art["items"]))
+        elif art_type == "diagnostic":
+            artifacts.append(DiagnosticArtifact(
+                name=art.get("name", ""),
+                status=art.get("status", "FAIL"),
+                details=art.get("details", {}),
+                recommendations=art.get("recommendations", []),
+            ))
+        elif art_type == "causal_spec":
+            artifacts.append(CausalSpecArtifact(
+                treatment=art.get("treatment"),
+                outcome=art.get("outcome"),
+                unit=art.get("unit"),
+                time_col=art.get("time_col"),
+                horizon=art.get("horizon"),
+                confounders_selected=art.get("confounders_selected", []),
+                confounders_missing=art.get("confounders_missing", []),
+                assumptions=art.get("assumptions", []),
+                questions=art.get("questions", []),
+            ))
+        elif art_type == "causal_readiness":
+            # Reconstruct nested objects for CausalReadinessReport
+            spec_data = art.get("spec", {})
+            spec_artifact = CausalSpecArtifact(
+                treatment=spec_data.get("treatment"),
+                outcome=spec_data.get("outcome"),
+                unit=spec_data.get("unit"),
+                time_col=spec_data.get("time_col"),
+                horizon=spec_data.get("horizon"),
+                confounders_selected=spec_data.get("confounders_selected", []),
+                confounders_missing=spec_data.get("confounders_missing", []),
+                assumptions=spec_data.get("assumptions", []),
+                questions=spec_data.get("questions", []),
+            )
+            diag_list = []
+            for d in art.get("diagnostics", []):
+                diag_list.append(DiagnosticArtifact(
+                    name=d.get("name", ""),
+                    status=d.get("status", "FAIL"),
+                    details=d.get("details", {}),
+                    recommendations=d.get("recommendations", []),
+                ))
+            artifacts.append(CausalReadinessReport(
+                readiness_status=art.get("readiness_status", "FAIL"),
+                spec=spec_artifact,
+                diagnostics=diag_list,
+                followup_questions=art.get("followup_questions", []),
+                ready_for_estimation=art.get("ready_for_estimation", False),
+                recommended_estimators=art.get("recommended_estimators", []),
+            ))
 
     return AskQuestionResponse(
         answer_text=final_state.get("llm_response") or "No response generated.",

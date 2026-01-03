@@ -8,7 +8,6 @@ Thresholds and rules are documented inline for transparency.
 """
 
 from pathlib import Path
-from typing import Any
 
 from packages.contracts.models import (
     CausalReadinessReport,
