@@ -1,0 +1,68 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [ staging ]
+
+env:
+  GCP_PROJECT: plotpointe
+  GCP_REGION: us-central1
+  SERVICE_NAME: sdlc-api-staging
+  REGISTRY: us-central1-docker.pkg.dev
+
+jobs:
+  build-push-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write  # Required for Workload Identity Federation
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Authenticate to Google Cloud
+      id: auth
+      uses: google-github-actions/auth@v2
+      with:
+        workload_identity_provider: projects/359145045403/locations/global/workloadIdentityPools/github-actions-pool/providers/github-oidc
+        service_account: sdlc-deploy@plotpointe.iam.gserviceaccount.com
+
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
+      with:
+        project_id: ${{ env.GCP_PROJECT }}
+
+    - name: Configure Docker for Artifact Registry
+      run: |
+        gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
+
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:${{ github.sha }} .
+        docker tag ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+                   ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:staging
+
+    - name: Push Docker image
+      run: |
+        docker push ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:${{ github.sha }}
+        docker push ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:staging
+
+    - name: Deploy to Cloud Run
+      uses: google-github-actions/deploy-cloudrun@v2
+      with:
+        service: ${{ env.SERVICE_NAME }}
+        region: ${{ env.GCP_REGION }}
+        image: ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:${{ github.sha }}
+        env_vars: |
+          APP_ENV=staging
+          GCP_PROJECT=plotpointe
+          GCP_LOCATION=us-central1
+          VERTEX_LLM_MODEL=gemini-1.5-flash
+          VERTEX_EMBED_MODEL=text-embedding-005
+
+    - name: Show deployment URL
+      run: |
+        echo "✅ Deployed to Cloud Run"
+        gcloud run services describe ${{ env.SERVICE_NAME }} \
+          --region=${{ env.GCP_REGION }} \
+          --format='value(status.url)'

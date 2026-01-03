@@ -1,7 +1,8 @@
 """
-LangGraph-based agent graph for RAG question answering.
+LangGraph-based agent graph for RAG question answering with EDA playbooks.
 """
 
+import json
 import re
 from datetime import UTC, datetime
 from pathlib import Path
@@ -10,7 +11,16 @@ from typing import TypedDict
 from langgraph.graph import END, StateGraph
 
 from .interfaces import EmbeddingsClient, LLMClient
+from .planner import select_playbook
 from .retrieval import retrieve_top_k
+from .tools_eda import (
+    EDAToolError,
+    correlation,
+    dataset_overview,
+    groupby_aggregate,
+    time_trend,
+    univariate_summary,
+)
 
 
 class AgentState(TypedDict, total=False):
@@ -30,6 +40,11 @@ class AgentState(TypedDict, total=False):
     llm_response: str
     trace_id: str
     trace_events: list[dict]
+
+    # Playbook (Phase 2)
+    playbook: str
+    playbook_params: dict
+    playbook_results: list[dict]  # Results from playbook execution
 
     # Artifacts
     artifacts: list[dict]
@@ -153,25 +168,50 @@ def retrieve_context_node(
 
 
 def compose_prompt_node(state: AgentState) -> dict:
-    """Compose the prompt for the LLM with retrieved context."""
+    """Compose the prompt for the LLM with retrieved context and playbook results."""
     system_instruction = (
         "You are a helpful data analysis assistant. "
-        "Answer the user's question using ONLY the provided context. "
-        "If the information is not present in the context, say you don't know. "
+        "Answer the user's question using the provided context and analysis results. "
+        "Reference specific numbers and findings from the analysis. "
         "Be concise and accurate."
     )
 
-    # Format retrieved chunks
+    # Format retrieved chunks (context document)
     context_parts = []
     for chunk in state.get("retrieved_chunks", []):
         context_parts.append(f"[Chunk {chunk['chunk_index']}]: {chunk['text']}")
 
-    context_text = "\n\n".join(context_parts) if context_parts else "(No context available)"
+    context_text = "\n\n".join(context_parts) if context_parts else "(No context document available)"
+
+    # Format playbook results
+    analysis_parts = []
+    for result in state.get("playbook_results", []):
+        # Format text artifact
+        if "text_artifact" in result:
+            analysis_parts.append(result["text_artifact"].get("content", ""))
+        # Format table artifact
+        if "table_artifact" in result:
+            table = result["table_artifact"]
+            headers = table.get("headers", [])
+            rows = table.get("rows", [])
+            if headers and rows:
+                table_str = " | ".join(headers) + "\n"
+                table_str += "-" * 40 + "\n"
+                for row in rows[:20]:  # Limit rows in prompt
+                    table_str += " | ".join(str(cell) for cell in row) + "\n"
+                if len(rows) > 20:
+                    table_str += f"... and {len(rows) - 20} more rows\n"
+                analysis_parts.append(table_str)
+
+    analysis_text = "\n\n".join(analysis_parts) if analysis_parts else "(No analysis results)"
 
     prompt = f"""{system_instruction}
 
-CONTEXT:
+CONTEXT (definitions and documentation):
 {context_text}
+
+ANALYSIS RESULTS:
+{analysis_text}
 
 User question: {state["question"]}
 
@@ -226,10 +266,149 @@ def build_response_node(state: AgentState) -> dict:
     return {"artifacts": artifacts}
 
 
+def select_playbook_node(state: AgentState, datasets_dir: Path) -> dict:
+    """Select appropriate playbook based on question and dataset metadata."""
+    trace_events = state.get("trace_events", [])
+    artifacts = state.get("artifacts", [])
+
+    dataset_id = state.get("dataset_id")
+    if not dataset_id:
+        # No dataset - skip playbook selection
+        trace_events = trace_events + [{
+            "event_type": "PLAYBOOK_SELECTED",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "payload": {"playbook": "NONE", "reason": "no_dataset_id"},
+        }]
+        return {"playbook": "NONE", "playbook_params": {}, "trace_events": trace_events}
+
+    # Load dataset metadata
+    metadata_path = datasets_dir / dataset_id / "metadata.json"
+    if not metadata_path.exists():
+        trace_events = trace_events + [{
+            "event_type": "PLAYBOOK_SELECTED",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "payload": {"playbook": "NONE", "reason": "dataset_not_found"},
+        }]
+        return {"playbook": "NONE", "playbook_params": {}, "trace_events": trace_events}
+
+    with open(metadata_path) as f:
+        metadata = json.load(f)
+
+    column_names = metadata.get("column_names", [])
+    inferred_types = metadata.get("inferred_types", {})
+
+    # Use the planner
+    selection = select_playbook(state["question"], column_names, inferred_types)
+
+    trace_events = trace_events + [{
+        "event_type": "PLAYBOOK_SELECTED",
+        "timestamp": datetime.now(UTC).isoformat(),
+        "payload": {
+            "playbook": selection.playbook,
+            "confidence": selection.confidence,
+            "params": selection.params,
+        },
+    }]
+
+    # If needs clarification, add to artifacts
+    if selection.playbook == "NEEDS_CLARIFICATION" and selection.clarification_questions:
+        artifacts = artifacts + [{
+            "type": "checklist",
+            "items": selection.clarification_questions,
+        }]
+
+    return {
+        "playbook": selection.playbook,
+        "playbook_params": selection.params,
+        "trace_events": trace_events,
+        "artifacts": artifacts,
+    }
+
+
+def execute_playbook_node(state: AgentState, datasets_dir: Path) -> dict:
+    """Execute the selected playbook and generate artifacts."""
+    trace_events = state.get("trace_events", [])
+    artifacts = state.get("artifacts", [])
+    playbook_results = []
+
+    playbook = state.get("playbook", "NONE")
+    params = state.get("playbook_params", {})
+    dataset_id = state.get("dataset_id")
+
+    if playbook == "NONE" or not dataset_id:
+        return {"playbook_results": [], "trace_events": trace_events}
+
+    try:
+        if playbook == "OVERVIEW":
+            result = dataset_overview(dataset_id, datasets_dir)
+            artifacts = artifacts + [result["text_artifact"], result["table_artifact"]]
+            playbook_results.append(result)
+
+        elif playbook == "UNIVARIATE":
+            column = params.get("column")
+            if column:
+                result = univariate_summary(dataset_id, column, datasets_dir)
+                artifacts = artifacts + [result["table_artifact"]]
+                playbook_results.append(result)
+
+        elif playbook == "GROUPBY":
+            group_col = params.get("group_col")
+            target_col = params.get("target_col")
+            agg = params.get("agg", "sum")
+            if group_col and target_col:
+                result = groupby_aggregate(dataset_id, group_col, target_col, agg, datasets_dir)
+                artifacts = artifacts + [result["table_artifact"]]
+                playbook_results.append(result)
+
+        elif playbook == "TREND":
+            date_col = params.get("date_col")
+            target_col = params.get("target_col")
+            agg = params.get("agg", "sum")
+            freq = params.get("freq", "D")
+            if date_col and target_col:
+                result = time_trend(dataset_id, date_col, target_col, agg, freq, datasets_dir)
+                artifacts = artifacts + [result["table_artifact"]]
+                playbook_results.append(result)
+
+        elif playbook == "CORRELATION":
+            columns = params.get("columns", [])
+            if len(columns) >= 2:
+                result = correlation(dataset_id, columns, datasets_dir)
+                artifacts = artifacts + [result["table_artifact"]]
+                playbook_results.append(result)
+
+        trace_events = trace_events + [{
+            "event_type": "TOOLS_EXECUTED",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "payload": {
+                "playbook": playbook,
+                "num_results": len(playbook_results),
+            },
+        }]
+
+    except EDAToolError as e:
+        trace_events = trace_events + [{
+            "event_type": "TOOLS_EXECUTED",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "payload": {"error": str(e)},
+        }]
+        artifacts = artifacts + [{
+            "type": "text",
+            "content": f"Error executing playbook: {e}",
+        }]
+
+    return {
+        "playbook_results": playbook_results,
+        "artifacts": artifacts,
+        "trace_events": trace_events,
+    }
+
+
 def create_agent_graph(
     embeddings_client: EmbeddingsClient,
     llm_client: LLMClient,
     storage_dir: Path,
+    datasets_dir: Path | None = None,
 ) -> StateGraph:
     """
     Create the LangGraph agent graph.
@@ -238,22 +417,29 @@ def create_agent_graph(
         embeddings_client: Client for embeddings
         llm_client: Client for LLM generation
         storage_dir: Path to document storage
+        datasets_dir: Path to dataset storage (for playbooks)
 
     Returns:
         Compiled StateGraph
     """
+    # Default datasets_dir if not provided
+    if datasets_dir is None:
+        datasets_dir = storage_dir.parent / "datasets"
+
     # Create graph with state schema
     graph = StateGraph(AgentState)
 
-    # Add nodes
-    graph.add_node("route", route_node)
+    # Add nodes (note: node names must not conflict with state keys)
+    graph.add_node("router", route_node)
     graph.add_node("retrieve_context", lambda s: retrieve_context_node(s, embeddings_client, storage_dir))
+    graph.add_node("select_playbook", lambda s: select_playbook_node(s, datasets_dir))
+    graph.add_node("execute_playbook", lambda s: execute_playbook_node(s, datasets_dir))
     graph.add_node("compose_prompt", compose_prompt_node)
     graph.add_node("call_llm", lambda s: call_llm_node(s, llm_client))
     graph.add_node("build_response", build_response_node)
 
     # Define edges
-    graph.set_entry_point("route")
+    graph.set_entry_point("router")
 
     # Conditional routing based on route type
     def should_continue_to_rag(state: AgentState) -> str:
@@ -262,7 +448,7 @@ def create_agent_graph(
         return "retrieve_context"
 
     graph.add_conditional_edges(
-        "route",
+        "router",
         should_continue_to_rag,
         {
             "retrieve_context": "retrieve_context",
@@ -270,7 +456,10 @@ def create_agent_graph(
         }
     )
 
-    graph.add_edge("retrieve_context", "compose_prompt")
+    # After retrieval, select and execute playbook, then compose prompt
+    graph.add_edge("retrieve_context", "select_playbook")
+    graph.add_edge("select_playbook", "execute_playbook")
+    graph.add_edge("execute_playbook", "compose_prompt")
     graph.add_edge("compose_prompt", "call_llm")
     graph.add_edge("call_llm", "build_response")
     graph.add_edge("build_response", END)
@@ -286,6 +475,7 @@ def run_agent(
     storage_dir: Path,
     dataset_id: str | None = None,
     session_id: str | None = None,
+    datasets_dir: Path | None = None,
 ) -> AgentState:
     """
     Run the agent graph and return the final state.
@@ -298,13 +488,14 @@ def run_agent(
         storage_dir: Storage directory path
         dataset_id: Optional dataset ID
         session_id: Optional session ID
+        datasets_dir: Optional datasets directory path
 
     Returns:
         Final AgentState (dict) with response
     """
     import uuid as uuid_module
 
-    graph = create_agent_graph(embeddings_client, llm_client, storage_dir)
+    graph = create_agent_graph(embeddings_client, llm_client, storage_dir, datasets_dir)
 
     initial_state: AgentState = {
         "question": question,
@@ -320,6 +511,9 @@ def run_agent(
         "retrieved_chunks": [],
         "prompt": "",
         "llm_response": "",
+        "playbook": "",
+        "playbook_params": {},
+        "playbook_results": [],
     }
 
     final_state = graph.invoke(initial_state)
