@@ -266,7 +266,11 @@ def infer_column_type(series: pd.Series) -> str:
         sample = series.dropna().head(10)
         if len(sample) > 0:
             try:
-                pd.to_datetime(sample, errors="raise")
+                # Suppress format inference warning by using infer_datetime_format
+                import warnings
+                with warnings.catch_warnings():
+                    warnings.filterwarnings("ignore", message="Could not infer format")
+                    pd.to_datetime(sample, errors="raise")
                 return "datetime_string"
             except (ValueError, TypeError):
                 pass
