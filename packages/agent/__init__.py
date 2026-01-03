@@ -1,5 +1,5 @@
 """
-Agent package - LangGraph orchestration with RAG retrieval.
+Agent package - LangGraph orchestration with RAG retrieval and EDA tools.
 
 Provides:
 - Protocol interfaces for LLM and Embeddings clients
@@ -7,12 +7,21 @@ Provides:
 - Vertex AI clients for production
 - RAG retrieval with cosine similarity
 - LangGraph-based agent graph
+- Deterministic EDA tools
 """
 
 from .fake_clients import FakeEmbeddingsClient, FakeLLMClient
 from .graph import AgentState, run_agent
 from .interfaces import EmbeddingsClient, LLMClient
 from .retrieval import RetrievedChunk, embed_and_store_chunks, retrieve_top_k
+from .tools_eda import (
+    EDAToolError,
+    correlation,
+    dataset_overview,
+    groupby_aggregate,
+    time_trend,
+    univariate_summary,
+)
 
 __all__ = [
     "EmbeddingsClient",
@@ -24,5 +33,12 @@ __all__ = [
     "retrieve_top_k",
     "AgentState",
     "run_agent",
+    # EDA tools
+    "EDAToolError",
+    "dataset_overview",
+    "univariate_summary",
+    "groupby_aggregate",
+    "time_trend",
+    "correlation",
 ]
 
