@@ -5,73 +5,64 @@ on:
     branches: [ staging ]
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  GCP_PROJECT: plotpointe
+  GCP_REGION: us-central1
+  SERVICE_NAME: sdlc-api-staging
+  REGISTRY: us-central1-docker.pkg.dev
 
 jobs:
-  build-and-push:
+  build-push-deploy:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: write
+      id-token: write  # Required for Workload Identity Federation
 
     steps:
     - uses: actions/checkout@v4
 
-    - name: Log in to Container Registry
-      uses: docker/login-action@v3
+    - name: Authenticate to Google Cloud
+      id: auth
+      uses: google-github-actions/auth@v2
       with:
-        registry: ${{ env.REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+        workload_identity_provider: projects/359145045403/locations/global/workloadIdentityPools/github-actions-pool/providers/github-oidc
+        service_account: sdlc-deploy@plotpointe.iam.gserviceaccount.com
 
-    - name: Extract metadata for Docker
-      id: meta
-      uses: docker/metadata-action@v5
+    - name: Set up Cloud SDK
+      uses: google-github-actions/setup-gcloud@v2
       with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=ref,event=branch
-          type=sha,prefix=staging-
+        project_id: ${{ env.GCP_PROJECT }}
 
-    - name: Build and push Docker image
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
-
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    environment: staging
-
-    steps:
-    - name: Deploy notification
+    - name: Configure Docker for Artifact Registry
       run: |
-        echo "🚀 Deploying to staging environment"
-        echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging"
-        echo ""
-        echo "To deploy manually, run:"
-        echo "  docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging"
-        echo "  docker run -d -p 8080:8080 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging"
+        gcloud auth configure-docker ${{ env.REGISTRY }} --quiet
 
-    # Placeholder for actual deployment
-    # Uncomment and configure for your infrastructure:
-    #
-    # For Cloud Run:
-    # - name: Deploy to Cloud Run
-    #   uses: google-github-actions/deploy-cloudrun@v2
-    #   with:
-    #     service: sdlc-api-staging
-    #     image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging
-    #
-    # For AWS ECS:
-    # - name: Deploy to ECS
-    #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-    #   with:
-    #     task-definition: task-definition.json
-    #     service: sdlc-api-staging
-    #     cluster: staging-cluster
+    - name: Build Docker image
+      run: |
+        docker build -t ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:${{ github.sha }} .
+        docker tag ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+                   ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:staging
 
+    - name: Push Docker image
+      run: |
+        docker push ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:${{ github.sha }}
+        docker push ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:staging
+
+    - name: Deploy to Cloud Run
+      uses: google-github-actions/deploy-cloudrun@v2
+      with:
+        service: ${{ env.SERVICE_NAME }}
+        region: ${{ env.GCP_REGION }}
+        image: ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:${{ github.sha }}
+        env_vars: |
+          APP_ENV=staging
+          GCP_PROJECT=plotpointe
+          GCP_LOCATION=us-central1
+          VERTEX_LLM_MODEL=gemini-1.5-flash
+          VERTEX_EMBED_MODEL=text-embedding-005
+
+    - name: Show deployment URL
+      run: |
+        echo "✅ Deployed to Cloud Run"
+        gcloud run services describe ${{ env.SERVICE_NAME }} \
+          --region=${{ env.GCP_REGION }} \
+          --format='value(status.url)'
