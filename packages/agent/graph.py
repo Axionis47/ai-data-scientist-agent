@@ -1,5 +1,7 @@
 """
 LangGraph-based agent graph for RAG question answering with EDA playbooks.
+
+Phase 3: Added causal gate integration for CAUSAL route.
 """
 
 import json
@@ -10,6 +12,9 @@ from typing import TypedDict
 
 from langgraph.graph import END, StateGraph
 
+from packages.contracts.models import CausalSpecOverride
+
+from .causal_gate import causal_readiness_gate
 from .interfaces import EmbeddingsClient, LLMClient
 from .planner import select_playbook
 from .retrieval import retrieve_top_k
@@ -46,6 +51,11 @@ class AgentState(TypedDict, total=False):
     playbook_params: dict
     playbook_results: list[dict]  # Results from playbook execution
 
+    # Causal (Phase 3)
+    causal_spec_override: dict | None  # User-provided causal specification
+    causal_readiness_status: str  # PASS/WARN/FAIL
+    causal_report: dict | None  # CausalReadinessReport as dict
+
     # Artifacts
     artifacts: list[dict]
 
@@ -77,21 +87,11 @@ def route_node(state: AgentState) -> dict:
     artifacts = state.get("artifacts", [])
     trace_events = state.get("trace_events", [])
 
-    # Check for causal patterns
+    # Check for causal patterns (Phase 3: route to CAUSAL for gate processing)
     for pattern in CAUSAL_PATTERNS:
         if re.search(pattern, question_lower):
-            # In Phase 1, causal queries return NEEDS_CLARIFICATION
-            route = "NEEDS_CLARIFICATION"
-            reasons = [f"Matched causal pattern: {pattern}", "Causal analysis requires clarification (Phase 1 placeholder)"]
-            artifacts = artifacts + [{
-                "type": "checklist",
-                "items": [
-                    "Specify the treatment variable",
-                    "Specify the outcome variable",
-                    "Identify potential confounders",
-                    "Confirm causal assumptions",
-                ],
-            }]
+            route = "CAUSAL"
+            reasons = [f"Matched causal pattern: {pattern}", "Causal analysis will run readiness gate"]
             trace_events = trace_events + [{
                 "event_type": "ROUTED",
                 "timestamp": datetime.now(UTC).isoformat(),
@@ -404,6 +404,169 @@ def execute_playbook_node(state: AgentState, datasets_dir: Path) -> dict:
     }
 
 
+def causal_gate_node(state: AgentState, datasets_dir: Path) -> dict:
+    """
+    Run the causal readiness gate and return structured report.
+
+    Phase 3: Never returns ATE - only readiness assessment and diagnostics.
+    """
+    trace_events = state.get("trace_events", [])
+    artifacts = state.get("artifacts", [])
+
+    dataset_id = state.get("dataset_id")
+    doc_id = state.get("doc_id", "")
+    question = state.get("question", "")
+    spec_override = state.get("causal_spec_override")
+
+    # Load dataset metadata if available
+    column_names: list[str] = []
+    inferred_types: dict[str, str] = {}
+
+    if dataset_id:
+        metadata_path = datasets_dir / dataset_id / "metadata.json"
+        if metadata_path.exists():
+            with open(metadata_path) as f:
+                metadata = json.load(f)
+            column_names = metadata.get("column_names", [])
+            inferred_types = metadata.get("inferred_types", {})
+
+    # Run the causal readiness gate
+    report = causal_readiness_gate(
+        question=question,
+        doc_id=doc_id,
+        dataset_id=dataset_id,
+        column_names=column_names,
+        inferred_types=inferred_types,
+        datasets_dir=datasets_dir,
+        spec_override=spec_override,
+    )
+
+    # Convert report to dict for serialization
+    report_dict = report.model_dump()
+
+    # Add diagnostics as artifacts
+    for diag in report.diagnostics:
+        artifacts.append(diag.model_dump())
+
+    # Add the spec artifact
+    artifacts.append(report.spec.model_dump())
+
+    # Add the readiness report artifact
+    artifacts.append(report_dict)
+
+    trace_events = trace_events + [{
+        "event_type": "CAUSAL_GATE_EXECUTED",
+        "timestamp": datetime.now(UTC).isoformat(),
+        "payload": {
+            "readiness_status": report.readiness_status,
+            "n_diagnostics": len(report.diagnostics),
+            "ready_for_estimation": report.ready_for_estimation,
+        },
+    }]
+
+    return {
+        "causal_readiness_status": report.readiness_status,
+        "causal_report": report_dict,
+        "artifacts": artifacts,
+        "trace_events": trace_events,
+    }
+
+
+def causal_decide_next_node(state: AgentState) -> dict:
+    """
+    Decide next action after causal gate.
+
+    - FAIL -> return NEEDS_CLARIFICATION with followup questions
+    - WARN -> return NEEDS_CLARIFICATION with targeted questions
+    - PASS -> return "Ready for estimation" message (no ATE in Phase 3)
+    """
+    trace_events = state.get("trace_events", [])
+    artifacts = state.get("artifacts", [])
+
+    readiness_status = state.get("causal_readiness_status", "FAIL")
+    causal_report = state.get("causal_report", {})
+    followup_questions = causal_report.get("followup_questions", [])
+    recommended_estimators = causal_report.get("recommended_estimators", [])
+
+    if readiness_status == "FAIL":
+        # Add checklist of required clarifications
+        if followup_questions:
+            artifacts.append({
+                "type": "checklist",
+                "items": followup_questions,
+            })
+
+        artifacts.append({
+            "type": "text",
+            "content": "❌ Causal readiness: FAIL\n\nCausal estimation cannot proceed until the above issues are resolved.",
+        })
+
+        return {
+            "route": "NEEDS_CLARIFICATION",
+            "llm_response": "Causal analysis requires clarification before proceeding. Please address the items in the checklist.",
+            "artifacts": artifacts,
+            "trace_events": trace_events,
+        }
+
+    elif readiness_status == "WARN":
+        # Add targeted questions
+        if followup_questions:
+            artifacts.append({
+                "type": "checklist",
+                "items": followup_questions,
+            })
+
+        artifacts.append({
+            "type": "text",
+            "content": "⚠️ Causal readiness: WARN\n\nCausal estimation may proceed with caveats. Please review the warnings and confirm assumptions.",
+        })
+
+        return {
+            "route": "NEEDS_CLARIFICATION",
+            "llm_response": "Causal analysis has warnings that should be addressed. Please review the diagnostics and confirm assumptions.",
+            "artifacts": artifacts,
+            "trace_events": trace_events,
+        }
+
+    else:  # PASS
+        # Ready for estimation - but Phase 3 does NOT compute ATE
+        spec = causal_report.get("spec", {})
+        treatment = spec.get("treatment", "unknown")
+        outcome = spec.get("outcome", "unknown")
+        confounders = spec.get("confounders_selected", [])
+
+        message = f"""✅ Causal readiness: PASS
+
+**Ready for estimation** (Phase 4 will compute actual effects)
+
+**Causal Specification:**
+- Treatment: `{treatment}`
+- Outcome: `{outcome}`
+- Confounders: {confounders if confounders else 'None selected'}
+
+**Recommended Estimators:**
+{chr(10).join('- ' + e for e in recommended_estimators) if recommended_estimators else '- To be determined'}
+
+**Next Steps (Phase 4):**
+1. Select estimation method
+2. Compute propensity scores / matching
+3. Estimate Average Treatment Effect (ATE)
+4. Sensitivity analysis
+
+*Note: Actual effect estimation is deferred to Phase 4.*"""
+
+        artifacts.append({
+            "type": "text",
+            "content": message,
+        })
+
+        return {
+            "llm_response": message,
+            "artifacts": artifacts,
+            "trace_events": trace_events,
+        }
+
+
 def create_agent_graph(
     embeddings_client: EmbeddingsClient,
     llm_client: LLMClient,
@@ -438,23 +601,35 @@ def create_agent_graph(
     graph.add_node("call_llm", lambda s: call_llm_node(s, llm_client))
     graph.add_node("build_response", build_response_node)
 
+    # Phase 3: Causal gate nodes
+    graph.add_node("causal_gate", lambda s: causal_gate_node(s, datasets_dir))
+    graph.add_node("causal_decide_next", causal_decide_next_node)
+
     # Define edges
     graph.set_entry_point("router")
 
     # Conditional routing based on route type
-    def should_continue_to_rag(state: AgentState) -> str:
-        if state.get("route") in ["NEEDS_CLARIFICATION", "REPORTING"]:
+    def route_after_router(state: AgentState) -> str:
+        route = state.get("route", "ANALYSIS")
+        if route == "CAUSAL":
+            return "causal_gate"
+        elif route in ["NEEDS_CLARIFICATION", "REPORTING"]:
             return "build_response"
         return "retrieve_context"
 
     graph.add_conditional_edges(
         "router",
-        should_continue_to_rag,
+        route_after_router,
         {
+            "causal_gate": "causal_gate",
             "retrieve_context": "retrieve_context",
             "build_response": "build_response",
         }
     )
+
+    # Causal gate flow
+    graph.add_edge("causal_gate", "causal_decide_next")
+    graph.add_edge("causal_decide_next", "build_response")
 
     # After retrieval, select and execute playbook, then compose prompt
     graph.add_edge("retrieve_context", "select_playbook")
@@ -476,6 +651,7 @@ def run_agent(
     dataset_id: str | None = None,
     session_id: str | None = None,
     datasets_dir: Path | None = None,
+    causal_spec_override: CausalSpecOverride | dict | None = None,
 ) -> AgentState:
     """
     Run the agent graph and return the final state.
@@ -489,6 +665,7 @@ def run_agent(
         dataset_id: Optional dataset ID
         session_id: Optional session ID
         datasets_dir: Optional datasets directory path
+        causal_spec_override: Optional causal specification override (Phase 3)
 
     Returns:
         Final AgentState (dict) with response
@@ -496,6 +673,14 @@ def run_agent(
     import uuid as uuid_module
 
     graph = create_agent_graph(embeddings_client, llm_client, storage_dir, datasets_dir)
+
+    # Convert CausalSpecOverride to dict if needed
+    spec_override_dict = None
+    if causal_spec_override is not None:
+        if isinstance(causal_spec_override, dict):
+            spec_override_dict = causal_spec_override
+        else:
+            spec_override_dict = causal_spec_override.model_dump()
 
     initial_state: AgentState = {
         "question": question,
@@ -514,6 +699,9 @@ def run_agent(
         "playbook": "",
         "playbook_params": {},
         "playbook_results": [],
+        "causal_spec_override": spec_override_dict,
+        "causal_readiness_status": "",
+        "causal_report": None,
     }
 
     final_state = graph.invoke(initial_state)

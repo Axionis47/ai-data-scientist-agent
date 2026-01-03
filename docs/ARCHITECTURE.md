@@ -6,6 +6,8 @@ This is a deterministic, testable foundation for an intelligent SDLC assistant.
 
 - **Phase 0**: API spine, contracts, validation logic
 - **Phase 1**: LangGraph orchestration, RAG retrieval, Vertex AI integration
+- **Phase 2**: EDA playbooks, dataset upload, deterministic analysis tools
+- **Phase 3**: Causal Safety Gate with structured diagnostics and readiness checks
 
 ## Design Principles
 
@@ -190,30 +192,160 @@ Format:
 - Monitoring: Cloud Logging + Trace
 - Alerts: Error rate, latency p95
 
-## Deferred Items (Phase 2+)
+## Phase 3: Causal Safety Gate
 
-1. **Vector Database**:
+### Overview
+
+The Causal Safety Gate ensures causal analysis never proceeds without proper validation. It runs deterministic diagnostic checks and produces a structured `CausalReadinessReport`.
+
+**Key Principle**: No causal estimate (ATE) is ever returned unless readiness status is PASS. In Phase 3, even PASS status returns "Ready for estimation" message - actual estimation is deferred to Phase 4.
+
+### Causal Gate Flow
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    Causal Question                          │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    ROUTER NODE                              │
+│  - Matches causal keywords (effect, impact, causal, ATE)   │
+│  - Routes to CAUSAL                                         │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  CAUSAL_GATE NODE                           │
+│  1. Validate dataset exists                                 │
+│  2. Infer or validate treatment/outcome                    │
+│  3. Run diagnostic checks (see below)                      │
+│  4. Build CausalReadinessReport                            │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│              CAUSAL_DECIDE_NEXT NODE                        │
+│  - FAIL → NEEDS_CLARIFICATION + followup questions         │
+│  - WARN → NEEDS_CLARIFICATION + targeted questions         │
+│  - PASS → "Ready for estimation" + recommended estimators  │
+└─────────────────────────┬───────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   BUILD_RESPONSE                            │
+│  - Include all diagnostic artifacts                        │
+│  - Include CausalSpecArtifact                              │
+│  - Include CausalReadinessReport                           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Diagnostic Checks
+
+Each check returns a `DiagnosticArtifact` with status (PASS/WARN/FAIL), details, and recommendations:
+
+| Check | What It Does | Thresholds |
+|-------|--------------|------------|
+| **treatment_type_check** | Verifies treatment is binary | PASS: 2 values, WARN: 3-10 values, FAIL: continuous |
+| **time_ordering_check** | Verifies temporal precedence | PASS: parseable time column, WARN: no time column |
+| **missingness_check** | Checks missing data rates | PASS: ≤5%, WARN: 5-20%, FAIL: >20% |
+| **leakage_check** | Detects post-treatment variables | WARN: suspicious column names detected |
+| **positivity_check** | Propensity score distribution | FAIL: >10% extreme propensities, WARN: >20% borderline |
+| **balance_check** | Standardized Mean Differences | PASS: SMD ≤0.1, WARN: 0.1-0.25, FAIL: >0.25 |
+
+### Readiness Criteria
+
+1. **FAIL** (blocks estimation):
+   - No dataset provided
+   - Treatment or outcome cannot be inferred
+   - Treatment is continuous (>10 unique values)
+   - Missingness >20%
+   - Positivity violation (>10% extreme propensities)
+
+2. **WARN** (requires user confirmation):
+   - Treatment is multi-class (3-10 values)
+   - No time column to verify ordering
+   - Moderate missingness (5-20%)
+   - Moderate imbalance (SMD 0.1-0.25)
+
+3. **PASS** (ready for estimation):
+   - All critical checks pass
+   - May still have assumption questions for user
+
+### Assumption Questions (Always Asked)
+
+These are included in followup_questions even when readiness is PASS:
+- "What is the assignment mechanism? (randomized, policy rule, self-selection)"
+- "Is there potential for interference between units (SUTVA violation)?"
+- "Are there any unmeasured confounders you are aware of?"
+- "What is your preferred approach for handling missing data?"
+
+### Artifacts
+
+Phase 3 adds these artifact types:
+
+```python
+class CausalSpecArtifact:
+    treatment: str | None
+    outcome: str | None
+    unit: str | None
+    time_col: str | None
+    horizon: str | None
+    confounders_selected: list[str]
+    confounders_missing: list[str]  # Known unmeasured confounders
+    assumptions: list[str]
+    questions: list[str]
+
+class DiagnosticArtifact:
+    name: str  # e.g., "positivity_check"
+    status: Literal["PASS", "WARN", "FAIL"]
+    details: dict
+    recommendations: list[str]
+
+class CausalReadinessReport:
+    readiness_status: Literal["PASS", "WARN", "FAIL"]
+    spec: CausalSpecArtifact
+    diagnostics: list[DiagnosticArtifact]
+    followup_questions: list[str]
+    ready_for_estimation: bool
+    recommended_estimators: list[str]  # Phase 4
+```
+
+### API Changes
+
+`AskQuestionRequest` now accepts an optional `causal_spec_override`:
+
+```json
+{
+  "question": "What is the effect of treatment on outcome?",
+  "doc_id": "abc123",
+  "dataset_id": "xyz789",
+  "causal_spec_override": {
+    "treatment": "treatment_col",
+    "outcome": "outcome_col",
+    "confounders": ["age", "income"]
+  }
+}
+```
+
+## Deferred Items (Phase 4+)
+
+1. **Causal Effect Estimation** (Phase 4):
+   - Inverse Probability Weighting (IPW)
+   - Augmented IPW (Doubly Robust)
+   - Propensity Score Matching
+   - Sensitivity Analysis (Rosenbaum bounds)
+
+2. **Vector Database**:
    - Migrate from file-based embeddings to Vertex AI Vector Search or Pinecone
    - Required for larger documents (>1000 chunks)
 
-2. **Dataset Processing**:
-   - Parse CSV/Excel files
-   - Schema inference
-   - Data profiling
-   - Storage in BigQuery or Cloud Storage
-
-3. **Causal Analysis**:
-   - Implement full CAUSAL playbook
-   - Treatment/outcome variable specification
-   - Confounder identification
-   - ATE estimation
-
-4. **Reporting/Export**:
+3. **Reporting/Export**:
    - Implement REPORTING playbook
    - Generate PDF/HTML reports
    - Export data summaries
 
-5. **Authentication**:
+4. **Authentication**:
    - User auth via Firebase/Auth0
    - Session management
    - Rate limiting
