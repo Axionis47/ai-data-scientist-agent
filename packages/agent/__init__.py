@@ -14,6 +14,7 @@ from .fake_clients import FakeEmbeddingsClient, FakeLLMClient
 from .graph import AgentState, run_agent
 from .interfaces import EmbeddingsClient, LLMClient
 from .retrieval import RetrievedChunk, embed_and_store_chunks, retrieve_top_k
+from .planner import PlaybookSelection, select_playbook
 from .tools_eda import (
     EDAToolError,
     correlation,
@@ -33,6 +34,9 @@ __all__ = [
     "retrieve_top_k",
     "AgentState",
     "run_agent",
+    # Planner
+    "PlaybookSelection",
+    "select_playbook",
     # EDA tools
     "EDAToolError",
     "dataset_overview",
