@@ -16,6 +16,8 @@ jobs:
     permissions:
       contents: read
       id-token: write  # Required for Workload Identity Federation
+    outputs:
+      service_url: ${{ steps.get-url.outputs.url }}
 
     steps:
     - uses: actions/checkout@v4
@@ -38,7 +40,11 @@ jobs:
 
     - name: Build Docker image
       run: |
-        docker build -t ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:${{ github.sha }} .
+        BUILD_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        docker build \
+          --build-arg GIT_SHA=${{ github.sha }} \
+          --build-arg BUILD_TIME=${BUILD_TIME} \
+          -t ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:${{ github.sha }} .
         docker tag ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:${{ github.sha }} \
                    ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:staging
 
@@ -60,10 +66,61 @@ jobs:
           GCP_LOCATION=us-central1
           VERTEX_LLM_MODEL=gemini-1.5-flash
           VERTEX_EMBED_MODEL=text-embedding-005
+          GIT_SHA=${{ github.sha }}
 
-    - name: Show deployment URL
+    - name: Get service URL
+      id: get-url
       run: |
-        echo "✅ Deployed to Cloud Run"
-        gcloud run services describe ${{ env.SERVICE_NAME }} \
+        URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
           --region=${{ env.GCP_REGION }} \
-          --format='value(status.url)'
+          --format='value(status.url)')
+        echo "url=${URL}" >> $GITHUB_OUTPUT
+        echo "✅ Deployed to: ${URL}"
+
+  smoke-check:
+    needs: build-push-deploy
+    runs-on: ubuntu-latest
+    steps:
+    - name: Health check with retries
+      run: |
+        SERVICE_URL="${{ needs.build-push-deploy.outputs.service_url }}"
+        echo "Checking health at ${SERVICE_URL}/health"
+        for i in 1 2 3 4 5; do
+          echo "Attempt $i..."
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "${SERVICE_URL}/health" || echo "000")
+          if [ "$STATUS" = "200" ]; then
+            echo "✅ Health check passed"
+            break
+          fi
+          if [ $i -eq 5 ]; then
+            echo "❌ Health check failed after 5 attempts"
+            exit 1
+          fi
+          echo "Status: $STATUS, retrying in $((i * 5))s..."
+          sleep $((i * 5))
+        done
+
+    - name: Version check
+      run: |
+        SERVICE_URL="${{ needs.build-push-deploy.outputs.service_url }}"
+        echo "Checking version at ${SERVICE_URL}/version"
+        RESPONSE=$(curl -sf "${SERVICE_URL}/version")
+        echo "Response: ${RESPONSE}"
+
+        # Verify git_sha is present and matches
+        GIT_SHA=$(echo "$RESPONSE" | jq -r '.git_sha')
+        if [ "$GIT_SHA" = "null" ] || [ -z "$GIT_SHA" ]; then
+          echo "❌ git_sha missing from /version response"
+          exit 1
+        fi
+        echo "✅ git_sha: ${GIT_SHA}"
+
+        # Verify app_env
+        APP_ENV=$(echo "$RESPONSE" | jq -r '.app_env')
+        if [ "$APP_ENV" != "staging" ]; then
+          echo "❌ Expected app_env=staging, got ${APP_ENV}"
+          exit 1
+        fi
+        echo "✅ app_env: ${APP_ENV}"
+
+        echo "✅ Version check passed"
