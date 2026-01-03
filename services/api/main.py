@@ -28,6 +28,7 @@ from packages.contracts import (
     AskQuestionResponse,
     ChecklistArtifact,
     RouterDecision,
+    TableArtifact,
     TextArtifact,
     UploadContextDocResponse,
     UploadDatasetResponse,
@@ -412,12 +413,13 @@ async def upload_dataset(file: UploadFile = File(...)):
 @app.post("/ask", response_model=AskQuestionResponse)
 async def ask_question(request: AskQuestionRequest):
     """
-    Ask a question using the RAG agent.
+    Ask a question using the RAG agent with EDA playbooks.
 
     The agent will:
     1. Route the question (ANALYSIS, CAUSAL, REPORTING, etc.)
     2. Retrieve relevant context chunks
-    3. Generate an answer using the LLM
+    3. Select and execute appropriate playbook (if dataset provided)
+    4. Generate an answer using the LLM
     """
     # Validate doc_id exists
     doc_dir = STORAGE_DIR / request.doc_id
@@ -450,6 +452,7 @@ async def ask_question(request: AskQuestionRequest):
             storage_dir=STORAGE_DIR,
             dataset_id=request.dataset_id,
             session_id=request.session_id,
+            datasets_dir=DATASETS_DIR,
         )
     except Exception as e:
         logger.error(f"Agent error: {e}")
@@ -467,6 +470,11 @@ async def ask_question(request: AskQuestionRequest):
     for art in final_state.get("artifacts", []):
         if art.get("type") == "text":
             artifacts.append(TextArtifact(content=art["content"]))
+        elif art.get("type") == "table":
+            artifacts.append(TableArtifact(
+                headers=art.get("headers", []),
+                rows=art.get("rows", []),
+            ))
         elif art.get("type") == "checklist":
             artifacts.append(ChecklistArtifact(items=art["items"]))
 
