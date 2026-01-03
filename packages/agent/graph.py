@@ -429,8 +429,8 @@ def create_agent_graph(
     # Create graph with state schema
     graph = StateGraph(AgentState)
 
-    # Add nodes
-    graph.add_node("route", route_node)
+    # Add nodes (note: node names must not conflict with state keys)
+    graph.add_node("router", route_node)
     graph.add_node("retrieve_context", lambda s: retrieve_context_node(s, embeddings_client, storage_dir))
     graph.add_node("select_playbook", lambda s: select_playbook_node(s, datasets_dir))
     graph.add_node("execute_playbook", lambda s: execute_playbook_node(s, datasets_dir))
@@ -439,7 +439,7 @@ def create_agent_graph(
     graph.add_node("build_response", build_response_node)
 
     # Define edges
-    graph.set_entry_point("route")
+    graph.set_entry_point("router")
 
     # Conditional routing based on route type
     def should_continue_to_rag(state: AgentState) -> str:
@@ -448,7 +448,7 @@ def create_agent_graph(
         return "retrieve_context"
 
     graph.add_conditional_edges(
-        "route",
+        "router",
         should_continue_to_rag,
         {
             "retrieve_context": "retrieve_context",
