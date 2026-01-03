@@ -2,7 +2,7 @@
 Pydantic models for all API contracts.
 """
 
-from typing import Literal, Optional, Union
+from typing import Literal
 
 from pydantic import BaseModel
 
@@ -14,13 +14,19 @@ class UploadContextDocResponse(BaseModel):
     num_chars: int
     num_chunks: int
     status: Literal["indexed", "failed"]
-    errors: Optional[list[str]] = None
+    errors: list[str] | None = None
 
 
 class UploadDatasetResponse(BaseModel):
-    """Response from uploading a dataset (stub for now)."""
+    """Response from uploading a dataset."""
     dataset_id: str
-    dataset_hash: Optional[str] = None
+    dataset_hash: str
+    n_rows: int
+    n_cols: int
+    column_names: list[str]
+    inferred_types: dict[str, str]
+    status: Literal["profiled", "failed"]
+    errors: list[str] | None = None
 
 
 class RouterDecision(BaseModel):
@@ -50,7 +56,7 @@ class ChecklistArtifact(BaseModel):
 
 
 # Discriminated union for artifacts
-Artifact = Union[TextArtifact, TableArtifact, ChecklistArtifact]
+Artifact = TextArtifact | TableArtifact | ChecklistArtifact
 
 
 class TraceEvent(BaseModel):
@@ -64,8 +70,8 @@ class AskQuestionRequest(BaseModel):
     """Request to ask a question."""
     question: str
     doc_id: str
-    dataset_id: Optional[str] = None
-    session_id: Optional[str] = None
+    dataset_id: str | None = None
+    session_id: str | None = None
 
 
 class AskQuestionResponse(BaseModel):
