@@ -24,8 +24,8 @@ jobs:
       id: auth
       uses: google-github-actions/auth@v2
       with:
-        workload_identity_provider: projects/359145045403/locations/global/workloadIdentityPools/github-actions-pool/providers/github-oidc
-        service_account: sdlc-deploy@plotpointe.iam.gserviceaccount.com
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+        service_account: ${{ secrets.WIF_SERVICE_ACCOUNT }}
 
     - name: Set up Cloud SDK
       uses: google-github-actions/setup-gcloud@v2
@@ -53,6 +53,7 @@ jobs:
         service: ${{ env.SERVICE_NAME }}
         region: ${{ env.GCP_REGION }}
         image: ${{ env.REGISTRY }}/${{ env.GCP_PROJECT }}/sdlc/${{ env.SERVICE_NAME }}:${{ github.sha }}
+        flags: '--allow-unauthenticated'
         env_vars: |
           APP_ENV=staging
           GCP_PROJECT=plotpointe
