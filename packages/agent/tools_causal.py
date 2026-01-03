@@ -87,7 +87,8 @@ def infer_candidate_columns(
                 col_idx = question_lower.find(col.replace("_", " ").lower())
             
             before_text = question_lower[:col_idx] if col_idx > 0 else ""
-            after_text = question_lower[col_idx:] if col_idx >= 0 else ""
+            # after_text could be used for more advanced parsing in future
+            _ = question_lower[col_idx:] if col_idx >= 0 else ""
             
             is_treatment = any(kw in before_text[-50:] for kw in treatment_keywords)
             is_outcome = any(kw in before_text[-30:] for kw in outcome_keywords)
