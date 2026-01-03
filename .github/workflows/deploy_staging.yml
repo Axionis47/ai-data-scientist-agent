@@ -1,0 +1,77 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [ staging ]
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Log in to Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ${{ env.REGISTRY }}
+        username: ${{ github.actor }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Extract metadata for Docker
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=sha,prefix=staging-
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        push: true
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+    - name: Deploy notification
+      run: |
+        echo "🚀 Deploying to staging environment"
+        echo "Image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging"
+        echo ""
+        echo "To deploy manually, run:"
+        echo "  docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging"
+        echo "  docker run -d -p 8080:8080 ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging"
+
+    # Placeholder for actual deployment
+    # Uncomment and configure for your infrastructure:
+    #
+    # For Cloud Run:
+    # - name: Deploy to Cloud Run
+    #   uses: google-github-actions/deploy-cloudrun@v2
+    #   with:
+    #     service: sdlc-api-staging
+    #     image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:staging
+    #
+    # For AWS ECS:
+    # - name: Deploy to ECS
+    #   uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+    #   with:
+    #     task-definition: task-definition.json
+    #     service: sdlc-api-staging
+    #     cluster: staging-cluster
+
