@@ -5,4 +5,5 @@ pydantic==2.5.3
 python-multipart==0.0.6
 langgraph>=0.0.30
 langchain-core>=0.1.0
+pandas>=2.0.0
 
