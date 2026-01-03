@@ -72,9 +72,13 @@ docker pull ghcr.io/<owner>/sdlc-api:staging-abc1234
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `OPENAI_API_KEY` | OpenAI API key for embeddings/LLM | Yes |
+| `OPENAI_API_KEY` | OpenAI API key for embeddings/LLM | Yes (local) |
+| `GOOGLE_CLOUD_PROJECT` | GCP project ID for Vertex AI | Yes (staging/prod) |
+| `GOOGLE_CLOUD_REGION` | GCP region for Vertex AI | No (default: `us-central1`) |
 | `STORAGE_DIR` | Path to document storage | No (default: `/app/storage`) |
 | `DATASETS_DIR` | Path to dataset storage | No (default: `/app/datasets`) |
+
+**Note:** In staging/production, Vertex AI is used for embeddings and LLM. Locally, fake clients are used for testing.
 
 ## Health Check
 
@@ -110,6 +114,40 @@ curl -X POST http://localhost:8080/ask \
     "question": "Give me an overview of the dataset",
     "doc_id": "<doc_id_from_step_1>",
     "dataset_id": "<dataset_id_from_step_2>"
+  }'
+
+# 4. Causal analysis (Phase 3 - readiness gate only)
+curl -X POST http://localhost:8080/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What is the effect of treatment on outcome?",
+    "doc_id": "<doc_id>",
+    "dataset_id": "<dataset_id>",
+    "causal_spec_override": {
+      "treatment": "treatment",
+      "outcome": "outcome",
+      "confounders": ["age", "income"]
+    }
+  }'
+
+# 5. Causal estimation (Phase 4 - with confirmations)
+curl -X POST http://localhost:8080/ask \
+  -H "Content-Type: application/json" \
+  -d '{
+    "question": "What is the effect of treatment on outcome?",
+    "doc_id": "<doc_id>",
+    "dataset_id": "<dataset_id>",
+    "causal_spec_override": {
+      "treatment": "treatment",
+      "outcome": "outcome",
+      "confounders": ["age", "income"]
+    },
+    "causal_confirmations": {
+      "assignment_mechanism": "randomized",
+      "interference_assumption": "no_interference",
+      "missing_data_policy": "listwise_delete",
+      "ok_to_estimate": true
+    }
   }'
 ```
 
