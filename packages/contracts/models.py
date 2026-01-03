@@ -6,7 +6,6 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-
 # =============================================================================
 # Phase 3: Causal Analysis Artifacts
 # =============================================================================

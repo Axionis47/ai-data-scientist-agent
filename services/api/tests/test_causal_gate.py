@@ -11,26 +11,25 @@ Tests verify:
 
 import json
 import shutil
+
+# Setup path for imports
+import sys
 import uuid
 from pathlib import Path
 
 import pandas as pd
-import pytest
 from fastapi.testclient import TestClient
 
-# Setup path for imports
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from services.api.main import app
 from packages.agent.causal_gate import causal_readiness_gate
 from packages.agent.tools_causal import (
-    check_treatment_type,
+    balance_check_smd,
     check_missingness,
     check_positivity_overlap,
-    balance_check_smd,
+    check_treatment_type,
 )
-
+from services.api.main import app
 
 client = TestClient(app)
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
@@ -41,10 +40,10 @@ def setup_test_dataset(csv_path: Path, dataset_id: str) -> Path:
     datasets_dir = Path(__file__).parent.parent / "storage" / "datasets"
     dataset_dir = datasets_dir / dataset_id
     dataset_dir.mkdir(parents=True, exist_ok=True)
-    
+
     # Copy CSV
     shutil.copy(csv_path, dataset_dir / "data.csv")
-    
+
     # Create metadata
     df = pd.read_csv(csv_path)
     inferred_types = {}
@@ -56,7 +55,7 @@ def setup_test_dataset(csv_path: Path, dataset_id: str) -> Path:
                 inferred_types[col] = "float"
         else:
             inferred_types[col] = "object"
-    
+
     metadata = {
         "n_rows": len(df),
         "n_cols": len(df.columns),
@@ -64,14 +63,14 @@ def setup_test_dataset(csv_path: Path, dataset_id: str) -> Path:
         "inferred_types": inferred_types,
         "created_at": "2024-01-01T00:00:00Z",
     }
-    
+
     with open(dataset_dir / "metadata.json", "w") as f:
         json.dump(metadata, f)
-    
+
     # Create empty profile
     with open(dataset_dir / "profile.json", "w") as f:
         json.dump({"columns": {}}, f)
-    
+
     return datasets_dir
 
 
@@ -85,22 +84,22 @@ def cleanup_test_dataset(dataset_id: str):
 
 class TestCausalGateUnit:
     """Unit tests for causal gate components."""
-    
+
     def test_check_treatment_type_binary_pass(self):
         """Binary treatment should PASS."""
         dataset_id = f"test_binary_{uuid.uuid4().hex[:8]}"
         try:
             datasets_dir = setup_test_dataset(
-                FIXTURES_DIR / "causal_binary_treatment.csv", 
+                FIXTURES_DIR / "causal_binary_treatment.csv",
                 dataset_id
             )
-            
+
             result = check_treatment_type(dataset_id, "treatment", datasets_dir)
             assert result["diagnostic"]["status"] == "PASS"
             assert result["diagnostic"]["details"]["is_binary"] is True
         finally:
             cleanup_test_dataset(dataset_id)
-    
+
     def test_check_treatment_type_non_binary_warn(self):
         """Non-binary treatment with few categories should WARN."""
         dataset_id = f"test_nonbinary_{uuid.uuid4().hex[:8]}"
@@ -109,13 +108,13 @@ class TestCausalGateUnit:
                 FIXTURES_DIR / "causal_non_binary_treatment.csv",
                 dataset_id
             )
-            
+
             result = check_treatment_type(dataset_id, "treatment_level", datasets_dir)
             assert result["diagnostic"]["status"] == "WARN"
             assert result["diagnostic"]["details"]["is_binary"] is False
         finally:
             cleanup_test_dataset(dataset_id)
-    
+
     def test_check_missingness_low_pass(self):
         """Low missingness should PASS."""
         dataset_id = f"test_miss_{uuid.uuid4().hex[:8]}"
@@ -124,17 +123,17 @@ class TestCausalGateUnit:
                 FIXTURES_DIR / "causal_binary_treatment.csv",
                 dataset_id
             )
-            
+
             result = check_missingness(
-                dataset_id, 
-                ["treatment", "outcome", "age"], 
+                dataset_id,
+                ["treatment", "outcome", "age"],
                 "treatment",
                 datasets_dir
             )
             assert result["diagnostic"]["status"] == "PASS"
         finally:
             cleanup_test_dataset(dataset_id)
-    
+
     def test_positivity_check_with_confounders(self):
         """Positivity check should run with confounders."""
         dataset_id = f"test_pos_{uuid.uuid4().hex[:8]}"
@@ -328,7 +327,7 @@ class TestCausalReadinessGate:
 
             # Should not contain "ATE: " followed by a number
             import re
-            ate_pattern = r'ATE[:\s]+[-+]?\d+\.?\d*'
+            ate_pattern = r"ATE[:\s]+[-+]?\d+\.?\d*"
             matches = re.findall(ate_pattern, report_str, re.IGNORECASE)
             assert len(matches) == 0, f"Found numeric ATE in response: {matches}"
         finally:

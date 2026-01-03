@@ -55,28 +55,28 @@ def infer_candidate_columns(
 ) -> dict[str, Any]:
     """
     Infer treatment/outcome candidates from question text and column metadata.
-    
+
     Returns dict with treatment_candidates, outcome_candidates, and confidence.
     """
     question_lower = question.lower()
-    
+
     # Keywords suggesting treatment
     treatment_keywords = [
         "effect of", "impact of", "does", "did", "whether",
         "treatment", "intervention", "exposure", "receiving",
         "assigned", "given", "policy", "program", "experiment",
     ]
-    
+
     # Keywords suggesting outcome
     outcome_keywords = [
         "on", "affect", "influence", "change", "outcome",
         "result", "performance", "success", "failure", "rate",
         "conversion", "retention", "churn", "revenue", "sales",
     ]
-    
+
     treatment_candidates = []
     outcome_candidates = []
-    
+
     # Look for exact column name matches in question
     for col in column_names:
         col_lower = col.lower()
@@ -85,14 +85,14 @@ def infer_candidate_columns(
             col_idx = question_lower.find(col_lower)
             if col_idx == -1:
                 col_idx = question_lower.find(col.replace("_", " ").lower())
-            
+
             before_text = question_lower[:col_idx] if col_idx > 0 else ""
             # after_text could be used for more advanced parsing in future
             _ = question_lower[col_idx:] if col_idx >= 0 else ""
-            
+
             is_treatment = any(kw in before_text[-50:] for kw in treatment_keywords)
             is_outcome = any(kw in before_text[-30:] for kw in outcome_keywords)
-            
+
             if is_treatment:
                 treatment_candidates.append(col)
             elif is_outcome:
@@ -104,20 +104,20 @@ def infer_candidate_columns(
                     treatment_candidates.append(col)
                 elif col_type in ["int", "float"]:
                     outcome_candidates.append(col)
-    
+
     # If no matches, look for common patterns
     if not treatment_candidates:
         for col in column_names:
             col_lower = col.lower()
             if any(kw in col_lower for kw in ["treatment", "treated", "group", "arm", "condition", "exposed"]):
                 treatment_candidates.append(col)
-    
+
     if not outcome_candidates:
         for col in column_names:
             col_lower = col.lower()
             if any(kw in col_lower for kw in ["outcome", "result", "target", "response", "y_", "label"]):
                 outcome_candidates.append(col)
-    
+
     return {
         "treatment_candidates": list(set(treatment_candidates)),
         "outcome_candidates": list(set(outcome_candidates)),
@@ -132,7 +132,7 @@ def check_treatment_type(
 ) -> dict[str, Any]:
     """
     Check if treatment is binary (required for most causal methods).
-    
+
     Returns DiagnosticArtifact with PASS (binary), WARN (multi-class), or FAIL (continuous).
     """
     df = _load_dataset(dataset_id, datasets_dir)
@@ -147,10 +147,10 @@ def check_treatment_type(
                 "recommendations": [f"Specify a valid treatment column. Available: {list(df.columns)}"],
             }
         }
-    
+
     unique_values = df[treatment_col].dropna().unique()
     n_unique = len(unique_values)
-    
+
     if n_unique == 2:
         return {
             "diagnostic": {
@@ -507,19 +507,19 @@ def check_positivity_overlap(
     y = df_clean[treatment_col].map(treatment_map)
 
     # Prepare confounders (numeric only for simplicity)
-    X = df_clean[confounders].copy()
-    for col in X.columns:
-        if not pd.api.types.is_numeric_dtype(X[col]):
-            X[col] = pd.Categorical(X[col]).codes
+    x_conf = df_clean[confounders].copy()  # - X is ML convention
+    for col in x_conf.columns:
+        if not pd.api.types.is_numeric_dtype(x_conf[col]):
+            x_conf[col] = pd.Categorical(x_conf[col]).codes
 
     # Fit propensity model (deterministic with fixed seed)
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X)
+    x_scaled = scaler.fit_transform(x_conf)
 
     model = LogisticRegression(random_state=42, max_iter=1000, solver="lbfgs")
-    model.fit(X_scaled, y)
+    model.fit(x_scaled, y)
 
-    propensity_scores = model.predict_proba(X_scaled)[:, 1]
+    propensity_scores = model.predict_proba(x_scaled)[:, 1]
 
     # Compute distribution summary
     percentiles = [1, 5, 10, 25, 50, 75, 90, 95, 99]
@@ -552,7 +552,7 @@ def check_positivity_overlap(
 
     # Build table
     headers = ["Percentile", "Propensity Score"]
-    rows = [[f"{p}%", f"{v:.4f}"] for p, v in zip(percentiles, pctl_values)]
+    rows = [[f"{p}%", f"{v:.4f}"] for p, v in zip(percentiles, pctl_values, strict=False)]
 
     return {
         "table_artifact": {"type": "table", "headers": headers, "rows": rows},
@@ -572,7 +572,7 @@ def check_positivity_overlap(
     }
 
 
-def balance_check_smd(
+def balance_check_smd(  # noqa: PLR0915
     dataset_id: str,
     treatment_col: str,
     confounders: list[str],

@@ -25,7 +25,6 @@ from .tools_causal import (
     infer_candidate_columns,
 )
 
-
 # =============================================================================
 # Standard follow-up questions for causal assumptions
 # =============================================================================
@@ -48,9 +47,9 @@ def _build_diagnostic_artifact(diag_dict: dict) -> DiagnosticArtifact:
     )
 
 
-def causal_readiness_gate(
+def causal_readiness_gate(  # noqa: PLR0915
     question: str,
-    doc_id: str,
+    doc_id: str,  # noqa: ARG001 - reserved for future RAG context
     dataset_id: str | None,
     column_names: list[str],
     inferred_types: dict[str, str],
@@ -59,7 +58,7 @@ def causal_readiness_gate(
 ) -> CausalReadinessReport:
     """
     Run causal readiness checks and return structured report.
-    
+
     Args:
         question: User's causal question
         doc_id: Document ID for context
@@ -68,13 +67,13 @@ def causal_readiness_gate(
         inferred_types: Column type mapping
         datasets_dir: Path to datasets directory
         spec_override: Optional user-provided specification override
-    
+
     Returns:
         CausalReadinessReport with readiness_status, spec, diagnostics, and followup_questions
     """
     diagnostics: list[DiagnosticArtifact] = []
     followup_questions: list[str] = []
-    
+
     # Initialize spec from override or infer
     treatment = spec_override.get("treatment") if spec_override else None
     outcome = spec_override.get("outcome") if spec_override else None
@@ -82,7 +81,7 @@ def causal_readiness_gate(
     time_col = spec_override.get("time_col") if spec_override else None
     horizon = spec_override.get("horizon") if spec_override else None
     confounders = spec_override.get("confounders", []) if spec_override else []
-    
+
     # ==========================================================================
     # GATE 0: Dataset required
     # ==========================================================================
@@ -99,7 +98,7 @@ def causal_readiness_gate(
             followup_questions=["Please upload a dataset to perform causal analysis."],
             ready_for_estimation=False,
         )
-    
+
     # ==========================================================================
     # GATE 1: Infer treatment/outcome if not specified
     # ==========================================================================
@@ -107,12 +106,12 @@ def causal_readiness_gate(
         inference = infer_candidate_columns(question, column_names, inferred_types)
         treatment_candidates = inference["treatment_candidates"]
         outcome_candidates = inference["outcome_candidates"]
-        
+
         if not treatment and treatment_candidates:
             treatment = treatment_candidates[0]  # Take first candidate
         if not outcome and outcome_candidates:
             outcome = outcome_candidates[0]
-        
+
         # If still missing, ask user
         if not treatment:
             followup_questions.append(
@@ -122,7 +121,7 @@ def causal_readiness_gate(
             followup_questions.append(
                 f"Which column represents the outcome? Available columns: {column_names}"
             )
-    
+
     # If we can't determine treatment/outcome, FAIL early
     if not treatment or not outcome:
         spec = CausalSpecArtifact(
@@ -137,7 +136,7 @@ def causal_readiness_gate(
             followup_questions=followup_questions,
             ready_for_estimation=False,
         )
-    
+
     # ==========================================================================
     # GATE 2: Check treatment type (must be binary)
     # ==========================================================================
