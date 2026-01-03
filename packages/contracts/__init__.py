@@ -7,7 +7,11 @@ from .models import (
     Artifact,
     AskQuestionRequest,
     AskQuestionResponse,
+    CausalReadinessReport,
+    CausalSpecArtifact,
+    CausalSpecOverride,
     ChecklistArtifact,
+    DiagnosticArtifact,
     RouterDecision,
     TableArtifact,
     TextArtifact,
@@ -27,5 +31,10 @@ __all__ = [
     "TraceEvent",
     "AskQuestionRequest",
     "AskQuestionResponse",
+    # Phase 3: Causal artifacts
+    "CausalSpecArtifact",
+    "DiagnosticArtifact",
+    "CausalReadinessReport",
+    "CausalSpecOverride",
 ]
 
