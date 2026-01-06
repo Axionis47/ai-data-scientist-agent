@@ -1,0 +1,36 @@
+{
+  "artifact_inventory": [
+    {
+      "row_count": 3,
+      "type": "table"
+    },
+    {
+      "content_length": 510,
+      "type": "text"
+    }
+  ],
+  "ci_high": null,
+  "ci_low": null,
+  "dataset_id": "729adc56-4167-495f-8c4a-700edee1d8e4",
+  "diagnostics_summary": {
+    "FAIL": 0,
+    "PASS": 0,
+    "WARN": 0,
+    "key_failures": []
+  },
+  "doc_id": "a8f8e801-b8c0-49d0-9606-d1c96d11fa26",
+  "estimate": null,
+  "estimator_selected": null,
+  "n_used": null,
+  "retrieved_chunk_ids": [],
+  "route": "ANALYSIS",
+  "router_decision": {
+    "confidence": 1.0,
+    "reasons": [
+      "Default route for analytical questions"
+    ],
+    "route": "ANALYSIS"
+  },
+  "timestamp": "2026-01-03T06:48:15.570531+00:00",
+  "trace_id": "06026270-eae0-4f40-9c3e-5821c26b3043"
+}

@@ -19,9 +19,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from packages.agent import (
     FakeEmbeddingsClient,
-    FakeLLMClient,
     embed_and_store_chunks,
     run_agent,
+)
+from packages.agent.llm_provider import (
+    get_app_env,
+    get_llm_client_with_info,
+    get_shadow_config,
+    is_ci_environment,
+    should_use_vertex,
 )
 from packages.contracts import (
     AskQuestionRequest,
@@ -87,17 +93,6 @@ def get_embeddings_client():
     return FakeEmbeddingsClient()
 
 
-def get_llm_client():
-    """Get the appropriate LLM client based on environment."""
-    if APP_ENV in ("staging", "prod"):
-        try:
-            from packages.agent.vertex_clients import VertexLLMClient
-            return VertexLLMClient()
-        except ImportError:
-            logger.warning("Vertex AI not available, falling back to fake client")
-    return FakeLLMClient()
-
-
 @app.get("/health")
 async def health():
     """Health check endpoint."""
@@ -111,6 +106,36 @@ async def version():
         "git_sha": GIT_SHA,
         "build_time": BUILD_TIME,
         "app_env": APP_ENV,
+    }
+
+
+@app.get("/debug/config")
+async def debug_config():
+    """
+    Debug endpoint to show which LLM provider would be used.
+    Only enabled in dev/test environments. No secrets are exposed.
+
+    Phase 5: Added for LLM wiring verification.
+    """
+    env = get_app_env()
+    if env not in ("dev", "test"):
+        from fastapi import HTTPException
+        raise HTTPException(
+            status_code=404,
+            detail={"error": "Not found"},
+        )
+
+    shadow_config = get_shadow_config()
+
+    return {
+        "app_env": env,
+        "is_ci": is_ci_environment(),
+        "would_use_vertex": should_use_vertex(),
+        "shadow_mode": {
+            "enabled": shadow_config["enabled"],
+            "sample_rate": shadow_config["sample_rate"],
+            "shadow_model": shadow_config["shadow_model"] or "(default)",
+        },
     }
 
 
@@ -547,11 +572,14 @@ async def ask_question(request: AskQuestionRequest):
             detail={"error": f"Embeddings not found for document: {request.doc_id}"}
         )
 
-    # Get clients
+    # Get clients (Phase 5: use provider info for tracing)
     embeddings_client = get_embeddings_client()
-    llm_client = get_llm_client()
+    llm_client, provider_info = get_llm_client_with_info()
 
-    logger.info(f"Processing question for doc_id={request.doc_id}: {request.question[:50]}...")
+    logger.info(
+        f"Processing question for doc_id={request.doc_id}: {request.question[:50]}... "
+        f"(provider={provider_info.provider}, model={provider_info.model})"
+    )
 
     # Run the agent
     try:
@@ -576,6 +604,7 @@ async def ask_question(request: AskQuestionRequest):
             datasets_dir=DATASETS_DIR,
             causal_spec_override=spec_override,
             causal_confirmations=confirmations,
+            provider_info=provider_info,
         )
     except Exception as e:
         logger.error(f"Agent error: {e}")
