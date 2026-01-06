@@ -8,6 +8,8 @@ This is a deterministic, testable foundation for an intelligent SDLC assistant.
 - **Phase 1**: LangGraph orchestration, RAG retrieval, Vertex AI integration
 - **Phase 2**: EDA playbooks, dataset upload, deterministic analysis tools
 - **Phase 3**: Causal Safety Gate with structured diagnostics and readiness checks
+- **Phase 4**: Causal estimation with confirmations gating
+- **Phase 5**: Shadow mode for LLM comparison and provider tracing
 
 ## Design Principles
 
@@ -328,9 +330,104 @@ class CausalReadinessReport:
 }
 ```
 
-## Deferred Items (Phase 4+)
+## Phase 5: Shadow Mode for LLM Comparison
 
-1. **Causal Effect Estimation** (Phase 4):
+### Overview
+
+Shadow Mode enables safe comparison of LLM outputs between different models or configurations. It runs a secondary LLM call in parallel with the primary call and logs the results for analysis without affecting the user-facing response.
+
+**Key Principle**: Shadow mode never affects the primary response. All shadow calls are fire-and-forget with timeout protection.
+
+### Shadow Mode Configuration
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `SHADOW_MODE_ENABLED` | Enable shadow mode | false |
+| `SHADOW_MODE_SAMPLE_RATE` | Fraction of requests to shadow (0.0-1.0) | 0.0 |
+| `SHADOW_MODE_MODEL` | Model to use for shadow calls | (same as primary) |
+
+### Environment Restrictions
+
+Shadow mode is **disabled** in these environments regardless of configuration:
+- `APP_ENV=dev` - Development environment
+- `APP_ENV=test` - Test environment
+- `CI=true` or `GITHUB_ACTIONS=true` - CI environments
+
+This ensures shadow mode only runs in staging/prod where real LLM calls are expected.
+
+### Trace Events
+
+Shadow mode adds these trace events:
+
+1. **LLM_PROVIDER_USED** - Logged for every LLM call
+   ```json
+   {
+     "event_type": "LLM_PROVIDER_USED",
+     "timestamp": "2024-01-15T10:30:00Z",
+     "payload": {
+       "provider": "vertex",
+       "model": "gemini-1.5-flash",
+       "prompt_version": "v1"
+     }
+   }
+   ```
+
+2. **SHADOW_LLM_RESULT** - Logged when shadow call completes
+   ```json
+   {
+     "event_type": "SHADOW_LLM_RESULT",
+     "timestamp": "2024-01-15T10:30:01Z",
+     "payload": {
+       "shadow_model": "gemini-1.5-pro",
+       "latency_ms": 1250.5,
+       "success": true,
+       "shadow_answer_text": "..."
+     }
+   }
+   ```
+
+3. **SHADOW_DIFF** - Logged with comparison metrics
+   ```json
+   {
+     "event_type": "SHADOW_DIFF",
+     "timestamp": "2024-01-15T10:30:01Z",
+     "payload": {
+       "similarity_proxy": 0.85,
+       "changed_refusal": false,
+       "changed_route": false,
+       "primary_length": 500,
+       "shadow_length": 480
+     }
+   }
+   ```
+
+### Debug Endpoint
+
+`GET /debug/config` - Shows current LLM configuration (dev/test only)
+
+```json
+{
+  "app_env": "dev",
+  "is_ci": false,
+  "would_use_vertex": false,
+  "shadow_mode": {
+    "enabled": false,
+    "sample_rate": 0.0,
+    "shadow_model": "(default)"
+  }
+}
+```
+
+### Use Cases
+
+1. **Model Comparison**: Compare outputs between gemini-1.5-flash and gemini-1.5-pro
+2. **Prompt Testing**: Test new prompt versions against production
+3. **Regression Detection**: Detect when model updates change behavior
+4. **Cost Analysis**: Compare response quality vs latency/cost tradeoffs
+
+## Deferred Items (Phase 6+)
+
+1. **Causal Effect Estimation** (Phase 4 - DONE):
    - Inverse Probability Weighting (IPW)
    - Augmented IPW (Doubly Robust)
    - Propensity Score Matching

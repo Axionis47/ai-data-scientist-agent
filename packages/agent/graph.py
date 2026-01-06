@@ -3,6 +3,7 @@ LangGraph-based agent graph for RAG question answering with EDA playbooks.
 
 Phase 3: Added causal gate integration for CAUSAL route.
 Phase 4: Added causal estimation with confirmations gating.
+Phase 5: Added LLM provider tracking and shadow mode.
 """
 
 import json
@@ -17,6 +18,15 @@ from packages.contracts.models import CausalConfirmations, CausalSpecOverride
 
 from .causal_gate import causal_readiness_gate
 from .interfaces import EmbeddingsClient, LLMClient
+from .llm_provider import (
+    LLMProviderInfo,
+    compute_shadow_diff,
+    create_provider_trace_event,
+    create_shadow_diff_event,
+    create_shadow_result_event,
+    get_shadow_client,
+    run_shadow_call,
+)
 from .planner import select_playbook
 from .retrieval import retrieve_top_k
 from .tools_causal_estimation import run_causal_estimation, select_estimator
@@ -227,28 +237,58 @@ Answer:"""
     return {"prompt": prompt}
 
 
-def call_llm_node(state: AgentState, llm_client: LLMClient) -> dict:
-    """Call the LLM with the composed prompt."""
-    trace_events = state.get("trace_events", [])
+def call_llm_node(
+    state: AgentState,
+    llm_client: LLMClient,
+    provider_info: LLMProviderInfo | None = None,
+) -> dict:
+    """
+    Call the LLM with the composed prompt.
+
+    Phase 5: Added provider tracking and shadow mode support.
+    """
+    trace_events = list(state.get("trace_events", []))
     prompt = state.get("prompt", "")
+
+    # Add LLM_PROVIDER_USED trace event
+    if provider_info:
+        trace_events.append(create_provider_trace_event(provider_info))
 
     try:
         response = llm_client.generate(prompt)
-        trace_events = trace_events + [{
+        trace_events.append({
             "event_type": "LLM_CALLED",
             "timestamp": datetime.now(UTC).isoformat(),
             "payload": {
                 "prompt_length": len(prompt),
                 "response_length": len(response),
             },
-        }]
+        })
+
+        # Shadow mode: run secondary LLM call if enabled
+        shadow_client, shadow_model = get_shadow_client()
+        if shadow_client is not None:
+            shadow_result = run_shadow_call(
+                client=shadow_client,
+                prompt=prompt,
+                model=shadow_model,
+            )
+
+            # Add shadow result trace event
+            trace_events.append(create_shadow_result_event(shadow_result))
+
+            # Compute and add diff trace event
+            diff = compute_shadow_diff(response, shadow_result.answer_text)
+            trace_events.append(create_shadow_diff_event(diff))
+
         return {"llm_response": response, "trace_events": trace_events}
+
     except Exception as e:
-        trace_events = trace_events + [{
+        trace_events.append({
             "event_type": "LLM_CALLED",
             "timestamp": datetime.now(UTC).isoformat(),
             "payload": {"error": str(e)},
-        }]
+        })
         return {"llm_response": f"Error generating response: {e}", "trace_events": trace_events}
 
 
@@ -783,6 +823,7 @@ def create_agent_graph(
     llm_client: LLMClient,
     storage_dir: Path,
     datasets_dir: Path | None = None,
+    provider_info: LLMProviderInfo | None = None,
 ) -> StateGraph:
     """
     Create the LangGraph agent graph.
@@ -792,6 +833,7 @@ def create_agent_graph(
         llm_client: Client for LLM generation
         storage_dir: Path to document storage
         datasets_dir: Path to dataset storage (for playbooks)
+        provider_info: LLM provider information for tracing (Phase 5)
 
     Returns:
         Compiled StateGraph
@@ -809,7 +851,7 @@ def create_agent_graph(
     graph.add_node("select_playbook", lambda s: select_playbook_node(s, datasets_dir))
     graph.add_node("execute_playbook", lambda s: execute_playbook_node(s, datasets_dir))
     graph.add_node("compose_prompt", compose_prompt_node)
-    graph.add_node("call_llm", lambda s: call_llm_node(s, llm_client))
+    graph.add_node("call_llm", lambda s: call_llm_node(s, llm_client, provider_info))
     graph.add_node("build_response", build_response_node)
 
     # Phase 3: Causal gate nodes
@@ -900,6 +942,7 @@ def run_agent(
     datasets_dir: Path | None = None,
     causal_spec_override: CausalSpecOverride | dict | None = None,
     causal_confirmations: CausalConfirmations | dict | None = None,
+    provider_info: LLMProviderInfo | None = None,
 ) -> AgentState:
     """
     Run the agent graph and return the final state.
@@ -915,13 +958,16 @@ def run_agent(
         datasets_dir: Optional datasets directory path
         causal_spec_override: Optional causal specification override (Phase 3)
         causal_confirmations: Optional causal confirmations for estimation (Phase 4)
+        provider_info: LLM provider information for tracing (Phase 5)
 
     Returns:
         Final AgentState (dict) with response
     """
     import uuid as uuid_module
 
-    graph = create_agent_graph(embeddings_client, llm_client, storage_dir, datasets_dir)
+    graph = create_agent_graph(
+        embeddings_client, llm_client, storage_dir, datasets_dir, provider_info
+    )
 
     # Convert CausalSpecOverride to dict if needed
     spec_override_dict = None
