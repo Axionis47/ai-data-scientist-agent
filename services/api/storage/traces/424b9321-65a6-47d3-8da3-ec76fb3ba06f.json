@@ -1,0 +1,43 @@
+{
+  "artifact_inventory": [
+    {
+      "type": "causal_readiness"
+    },
+    {
+      "type": "causal_spec"
+    },
+    {
+      "item_count": 1,
+      "type": "checklist"
+    },
+    {
+      "content_length": 95,
+      "type": "text"
+    }
+  ],
+  "ci_high": null,
+  "ci_low": null,
+  "dataset_id": null,
+  "diagnostics_summary": {
+    "FAIL": 0,
+    "PASS": 0,
+    "WARN": 0,
+    "key_failures": []
+  },
+  "doc_id": "099efccb-89d2-4e52-8784-fdfd04a820f0",
+  "estimate": null,
+  "estimator_selected": null,
+  "n_used": null,
+  "retrieved_chunk_ids": [],
+  "route": "NEEDS_CLARIFICATION",
+  "router_decision": {
+    "confidence": 0.9,
+    "reasons": [
+      "Causal analysis will run readiness gate",
+      "Matched causal pattern: \\beffect\\b"
+    ],
+    "route": "NEEDS_CLARIFICATION"
+  },
+  "timestamp": "2026-01-03T06:48:15.388590+00:00",
+  "trace_id": "424b9321-65a6-47d3-8da3-ec76fb3ba06f"
+}
