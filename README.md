@@ -1,433 +1,246 @@
-# 🧪 AI Data Scientist Agent
+# AI Data Scientist Agent
 
 [![CI](https://github.com/Axionis47/ai-data-scientist-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/Axionis47/ai-data-scientist-agent/actions/workflows/ci.yml)
-[![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)](https://www.python.org/downloads/)
-[![LangGraph](https://img.shields.io/badge/LangGraph-orchestration-green.svg)](https://langchain-ai.github.io/langgraph/)
-[![Vertex AI](https://img.shields.io/badge/Vertex%20AI-Gemini-orange.svg)](https://cloud.google.com/vertex-ai)
+![Python 3.11](https://img.shields.io/badge/python-3.11-blue.svg)
 
-An intelligent, guardrailed AI agent for **exploratory data analysis (EDA)** and **causal inference** — built on a modular, extensible spine that enforces safety before any causal estimate is returned.
+A Python agent that does EDA and causal inference on your data. It won't give you a causal estimate unless the data passes sanity checks first.
 
----
+Built with LangGraph + FastAPI. Runs on Cloud Run.
 
-## 🎯 What This Project Does
+## What it does
 
-| Capability | Description |
-|------------|-------------|
-| **Document Ingestion** | Upload `.docx` context documents with RAG embedding + retrieval |
-| **Dataset Analysis** | Upload `.csv` datasets with automatic profiling and EDA playbooks |
-| **Causal Safety Gate** | Runs 6 diagnostic checks before allowing causal estimation |
-| **Causal Estimation** | IPW and Regression Adjustment with bootstrap confidence intervals |
-| **Shadow Mode** | Compare LLM outputs between models without affecting users |
-| **Production Ready** | CI/CD, Docker, Cloud Run deployment with health checks |
+- **Upload context docs** (.docx) — chunks and embeds them for RAG retrieval
+- **Upload datasets** (.csv) — profiles columns, caches metadata
+- **Answer questions** — routes to EDA playbooks or causal analysis
+- **Block bad estimates** — runs 6 diagnostic checks before any causal estimate
+- **Compare LLMs** — shadow mode lets you test new models without affecting users
 
----
-
-## 🏗️ Architecture Overview
-
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              FastAPI Service                                 │
-│  /upload_context_doc  /upload_dataset  /ask  /health  /version              │
-└─────────────────────────────────────┬───────────────────────────────────────┘
-                                      │
-                    ┌─────────────────▼─────────────────┐
-                    │         LangGraph Agent           │
-                    │   11 Nodes • Conditional Edges    │
-                    └─────────────────┬─────────────────┘
-                                      │
-        ┌─────────────┬───────────────┼───────────────┬─────────────┐
-        ▼             ▼               ▼               ▼             ▼
-   ┌─────────┐  ┌──────────┐   ┌───────────┐   ┌──────────┐   ┌──────────┐
-   │ Router  │  │   RAG    │   │  Causal   │   │   EDA    │   │   LLM    │
-   │  Node   │  │Retrieval │   │   Gate    │   │Playbooks │   │  Client  │
-   └─────────┘  └──────────┘   └───────────┘   └──────────┘   └──────────┘
-        │             │               │               │             │
-        │        Embeddings      Diagnostics    Deterministic   Vertex AI
-        │        (Vertex AI)     + Estimation      Tools       or Fake
-        └─────────────┴───────────────┴───────────────┴─────────────┘
-```
-
-### LangGraph Node Flow
-
-```mermaid
-graph TD
-    A[User Question] --> B{Router}
-    B -->|ANALYSIS| C[Retrieve Context]
-    B -->|CAUSAL| D[Causal Gate]
-    B -->|REPORTING| E[Build Response]
-    
-    C --> F[Select Playbook]
-    F --> G[Execute Playbook]
-    G --> H[Compose Prompt]
-    H --> I[Call LLM]
-    I --> E
-    
-    D --> J{Decide Next}
-    J -->|FAIL/WARN| E
-    J -->|PASS| K[Check Confirmations]
-    K -->|confirmed| L[Run Estimation]
-    K -->|pending| E
-    L --> E
-```
-
----
-
-## 🛡️ Causal Safety Gate
-
-**No causal estimate is ever returned without passing safety checks.**
-
-| Check | What It Validates | Failure Threshold |
-|-------|-------------------|-------------------|
-| `treatment_type_check` | Binary treatment variable | >10 unique values |
-| `time_ordering_check` | Temporal precedence | No parseable time column |
-| `missingness_check` | Missing data rate | >20% missing |
-| `leakage_check` | Post-treatment variables | Suspicious column names |
-| `positivity_check` | Propensity score overlap | >10% extreme scores |
-| `balance_check` | Covariate balance (SMD) | SMD > 0.25 |
-
-### Readiness Flow
-
-```
-FAIL → Block estimation, return diagnostic report + followup questions
-WARN → Require user confirmations before proceeding
-PASS → Run estimation with IPW + Regression Adjustment
-```
-
----
-
-## 📁 Project Structure
-
-```
-ai-data-scientist-agent/
-├── packages/
-│   ├── agent/                 # LangGraph orchestration
-│   │   ├── graph.py           # 11-node StateGraph
-│   │   ├── tools_causal.py    # Causal diagnostics
-│   │   ├── tools_causal_estimation.py  # IPW, Regression Adj
-│   │   ├── tools_eda.py       # Deterministic EDA tools
-│   │   ├── retrieval.py       # RAG embedding + retrieval
-│   │   ├── llm_provider.py    # Provider selection + shadow mode
-│   │   ├── vertex_clients.py  # Vertex AI Gemini + embeddings
-│   │   └── fake_clients.py    # Deterministic fakes for CI
-│   └── contracts/             # Pydantic request/response models
-├── services/
-│   └── api/
-│       ├── main.py            # FastAPI endpoints
-│       └── tests/             # 53 pytest tests
-├── docs/
-│   └── ARCHITECTURE.md        # Detailed technical docs
-├── .github/workflows/
-│   ├── ci.yml                 # Lint + test + Docker build
-│   └── deploy_staging.yml     # Cloud Run deployment
-├── Dockerfile
-└── pyproject.toml
-```
-
----
-
-## 🚀 Quick Start
-
-### Local Development
+## Quick start
 
 ```bash
-# Clone
 git clone https://github.com/Axionis47/ai-data-scientist-agent.git
 cd ai-data-scientist-agent
-
-# Install dependencies
 pip install -r services/api/requirements-dev.txt
 
-# Run locally (uses fake LLM/embeddings - no GCP needed)
+# Run locally (uses fake LLM - no GCP needed)
 APP_ENV=dev uvicorn services.api.main:app --reload
 
 # Run tests
 pytest services/api/tests/ -v
 ```
 
-### Docker
+Or with Docker:
 
 ```bash
 docker build -t ai-data-scientist-agent .
 docker run -p 8080:8080 -e APP_ENV=dev ai-data-scientist-agent
 ```
 
----
+## How it's built
 
-## 🔌 API Endpoints
+```
+FastAPI → LangGraph (11 nodes) → Vertex AI / Fake clients
+                ↓
+    ┌───────────┼───────────┐
+    │           │           │
+  Router     RAG        Causal Gate
+    │      Retrieval    (diagnostics)
+    │           │           │
+    └───────────┴───────────┘
+                ↓
+           Response
+```
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/health` | GET | Health check |
-| `/version` | GET | Build info (git SHA, timestamp) |
-| `/upload_context_doc` | POST | Upload `.docx` → chunk → embed |
-| `/upload_dataset` | POST | Upload `.csv` → profile → cache |
-| `/ask` | POST | Ask questions with RAG + causal analysis |
-| `/debug/config` | GET | LLM config (dev/test only) |
+The agent uses a LangGraph StateGraph with conditional edges. A router node looks at the question and decides where to send it:
 
----
+- **ANALYSIS** → retrieve context, pick a playbook, run EDA tools, call LLM
+- **CAUSAL** → run diagnostics, check assumptions, maybe estimate
+- **REPORTING** → (placeholder for future)
 
-## 🔧 Environment Variables
+## The causal gate
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `APP_ENV` | Environment: `dev`, `test`, `staging`, `prod` | `dev` |
-| `GCP_PROJECT` | GCP project ID (required for Vertex AI) | - |
+This is the main safety feature. Before any causal estimate, it runs:
+
+| Check | What it looks for | Blocks if |
+|-------|-------------------|-----------|
+| Treatment type | Is treatment binary? | >10 unique values |
+| Time ordering | Does treatment come before outcome? | Can't parse dates |
+| Missingness | How much data is missing? | >20% missing |
+| Leakage | Post-treatment variables in covariates? | Suspicious columns |
+| Positivity | Overlap in propensity scores? | >10% extreme scores |
+| Balance | Are groups comparable? | SMD > 0.25 |
+
+If any check fails, you get a diagnostic report instead of an estimate. If checks warn, you have to confirm assumptions before proceeding.
+
+## Project layout
+
+```
+packages/
+  agent/
+    graph.py              # LangGraph state machine
+    tools_causal.py       # Diagnostic checks
+    tools_causal_estimation.py  # IPW, regression adjustment
+    tools_eda.py          # Dataset profiling, groupby, trends
+    retrieval.py          # Embed + retrieve chunks
+    llm_provider.py       # Pick Vertex vs fake, shadow mode
+    fake_clients.py       # Deterministic fakes for tests
+    vertex_clients.py     # Real Gemini + embeddings
+  contracts/              # Pydantic models
+
+services/api/
+  main.py                 # FastAPI app
+  tests/                  # 53 tests
+
+.github/workflows/
+  ci.yml                  # Lint + test + docker build
+  deploy_staging.yml      # Deploy to Cloud Run
+```
+
+## API
+
+| Endpoint | What it does |
+|----------|--------------|
+| `GET /health` | Returns `{"status": "healthy"}` |
+| `GET /version` | Git SHA and build time |
+| `POST /upload_context_doc` | Upload .docx, get doc_id back |
+| `POST /upload_dataset` | Upload .csv, get dataset_id + profile |
+| `POST /ask` | Ask a question, get answer + artifacts |
+| `GET /debug/config` | Show LLM config (dev only) |
+
+## Config
+
+Set these environment variables:
+
+| Variable | What it does | Default |
+|----------|--------------|---------|
+| `APP_ENV` | `dev`, `test`, `staging`, or `prod` | `dev` |
+| `GCP_PROJECT` | Your GCP project (needed for Vertex) | — |
 | `GCP_LOCATION` | GCP region | `us-central1` |
-| `VERTEX_LLM_MODEL` | LLM model | `gemini-1.5-flash` |
-| `SHADOW_MODE_ENABLED` | Enable shadow LLM comparison | `false` |
-| `SHADOW_MODE_SAMPLE_RATE` | Fraction of requests to shadow | `0.0` |
+| `VERTEX_LLM_MODEL` | Which Gemini model | `gemini-1.5-flash` |
+| `SHADOW_MODE_ENABLED` | Run a second LLM in parallel | `false` |
+| `SHADOW_MODE_SAMPLE_RATE` | What fraction to shadow | `0.0` |
 
----
+In dev/test, it uses fake clients so you don't need GCP credentials.
 
-## 🧩 Architectural Choices
 
-### Why LangGraph?
+## Why these choices?
 
-LangGraph provides **explicit, debuggable control flow** vs. autonomous agents:
+### LangGraph instead of autonomous agents
 
-- **Deterministic routing**: Pattern-matching router decides paths, not LLM
-- **Conditional edges**: Causal gate can block estimation based on diagnostics
-- **State management**: All context flows through typed `AgentState`
-- **Testability**: Each node can be unit tested in isolation
+I wanted explicit control flow, not an LLM deciding what to do next. With LangGraph:
 
-### Why File-Based Embeddings (No Vector DB)?
+- The router uses pattern matching, not LLM calls
+- Each node is a regular Python function you can unit test
+- Conditional edges let the causal gate block bad requests
+- State is typed (`AgentState` dataclass), so you catch bugs early
 
-For Phase 1-5, we use a simple file-based approach:
+### File-based embeddings instead of a vector DB
+
+For now, embeddings live in JSON files:
 
 ```
 storage/contexts/{doc_id}/embeddings.json
 ```
 
-**Rationale:**
-- Context documents are small (<50 chunks typical)
-- Cosine similarity over 256-dim vectors is fast in pure numpy
-- Zero external dependencies to manage
-- Fully deterministic and reproducible in CI
+This works because:
+- Most context docs are <50 chunks
+- Cosine similarity on 256-dim vectors is fast enough in numpy
+- No Pinecone/Qdrant to set up and pay for
+- Tests are deterministic (no external state)
 
-**When to migrate**: If documents exceed ~1000 chunks, migrate to Vertex AI Vector Search or Pinecone.
+When to switch: if you're indexing >1000 chunks, add Vertex AI Vector Search or Pinecone.
 
-### Why Fake Clients in CI?
+### Fake clients in dev/test
 
-The `FakeLLMClient` and `FakeEmbeddingsClient` ensure:
+The `FakeLLMClient` returns canned responses. The `FakeEmbeddingsClient` returns deterministic vectors. This means:
 
-- **Zero network calls** in CI/tests
-- **Deterministic outputs** for reproducible tests
-- **Fast execution** (~2s for 53 tests)
-- **No GCP credentials** required for development
+- Zero network calls in CI
+- Tests run in ~2 seconds
+- No GCP credentials needed locally
+- Same outputs every time
+
+The switch happens automatically:
 
 ```python
-# Automatic selection based on environment
 if is_ci_environment() or APP_ENV in ("dev", "test"):
-    return FakeLLMClient()  # Deterministic
+    return FakeLLMClient()
 else:
-    return VertexLLMClient()  # Real Gemini
+    return VertexLLMClient()
 ```
 
-### Why a Causal Safety Gate?
+### Why block estimates behind a gate?
 
-Causal inference is **high-stakes** — wrong estimates lead to bad decisions. The gate enforces:
+Causal inference is easy to get wrong. A naive estimate can be wildly misleading if:
+- Treatment isn't really binary
+- There's no overlap between groups
+- You're conditioning on post-treatment variables
 
-1. **Structural validity**: Binary treatment, known confounders
-2. **Statistical validity**: Positivity, overlap, balance checks
-3. **User confirmation**: Explicit sign-off before estimation
+So the agent refuses to estimate until checks pass. Users see exactly what failed and what to fix.
 
-This prevents the agent from confidently returning a causal estimate when assumptions are violated.
+### Shadow mode for safe comparisons
 
-### Why Shadow Mode?
+Want to try gemini-1.5-pro instead of flash? Turn on shadow mode. It runs both models, logs the diff, but only returns the primary response. You can compare quality without risking prod.
 
-Shadow mode enables **safe LLM comparison** in production:
+## Extending this
 
-- Primary response is never affected
-- Secondary model runs in parallel with timeout
-- Trace events capture similarity metrics
-- Useful for: model upgrades, prompt testing, cost optimization
+The codebase is set up to add features without touching core logic.
 
----
+**Add a playbook** — put triggers in `planner.py`, tools in `tools_eda.py`, wire in `graph.py`.
 
-## 🔄 Extending the Spine
+**Add an estimator** — write the function in `tools_causal_estimation.py`, add it to recommended list, call it from `run_estimation_node`.
 
-The architecture is designed for extension. Here's how to add common features:
+**Add a diagnostic** — write a check in `tools_causal.py`, call it from `run_causal_diagnostics()`.
 
-### Adding a New Playbook
+**Add an LLM provider** — implement the `LLMClient` protocol, add selection logic in `llm_provider.py`.
 
-1. Add pattern to `planner.py`:
-   ```python
-   PLAYBOOKS["CORRELATION"] = {
-       "triggers": ["correlation", "relationship between"],
-       "tools": ["correlation_matrix", "scatter_plot"]
-   }
-   ```
+**Add auth** — middleware in `main.py`, user context in `AgentState`.
 
-2. Add tool to `tools_eda.py`:
-   ```python
-   def correlation_matrix(df: pd.DataFrame, columns: list[str]) -> TableArtifact:
-       ...
-   ```
+**Add a vector DB** — new client class, swap out file reads in `retrieval.py`.
 
-3. Wire in `graph.py` → `execute_playbook_node`
+## Tests
 
-### Adding a New Causal Estimator
-
-1. Add estimator to `tools_causal_estimation.py`:
-   ```python
-   def propensity_score_matching(df, treatment, outcome, covariates) -> CausalEstimateArtifact:
-       ...
-   ```
-
-2. Add to `recommended_estimators` in `tools_causal.py`
-
-3. Extend `run_estimation_node` in `graph.py`
-
-### Adding a New Diagnostic Check
-
-1. Add check function to `tools_causal.py`:
-   ```python
-   def check_sutva_violation(df, unit_col, treatment) -> DiagnosticArtifact:
-       # Check for interference between units
-       ...
-   ```
-
-2. Call from `run_causal_diagnostics()`
-
-3. Update `CausalReadinessReport` aggregation logic
-
-### Adding a New LLM Provider
-
-1. Implement `LLMClient` protocol in new file:
-   ```python
-   class AnthropicClient:
-       def generate(self, prompt: str) -> str:
-           ...
-   ```
-
-2. Add selection logic to `llm_provider.py`:
-   ```python
-   if os.getenv("LLM_PROVIDER") == "anthropic":
-       return AnthropicClient()
-   ```
-
-### Adding Authentication
-
-1. Add middleware in `main.py`:
-   ```python
-   @app.middleware("http")
-   async def auth_middleware(request: Request, call_next):
-       token = request.headers.get("Authorization")
-       # Validate with Firebase/Auth0
-       ...
-   ```
-
-2. Add user context to `AgentState`
-
-### Adding a Vector Database
-
-1. Create new client in `packages/agent/vector_client.py`:
-   ```python
-   class PineconeClient:
-       def upsert(self, doc_id: str, chunks: list[ChunkEmbedding]):
-           ...
-       def query(self, embedding: list[float], top_k: int):
-           ...
-   ```
-
-2. Replace file operations in `retrieval.py`
-
----
-
-## 🧪 Testing Strategy
-
-| Test Type | Location | Purpose |
-|-----------|----------|---------|
-| Unit tests | `test_*.py` | Individual function behavior |
-| Integration tests | `test_ask.py` | Full `/ask` workflow |
-| Contract tests | Pydantic validation | Schema correctness |
-| Docker tests | CI workflow | Container builds and runs |
-
-### Running Tests
+53 tests across 5 files. Run them with:
 
 ```bash
-# All tests
 pytest services/api/tests/ -v
-
-# Specific test file
-pytest services/api/tests/test_causal_gate.py -v
-
-# With coverage
-pytest --cov=packages --cov=services --cov-report=html
 ```
 
----
+The CI runs ruff + pytest + docker build on every PR.
 
-## 🚢 Deployment
+## Deploying
 
-### CI/CD Pipeline
+Push to `dev` → CI runs → merge to `staging` → deploys to Cloud Run → smoke checks hit `/health` and `/version`.
 
-```
-Push to dev → CI (lint + test + docker) → Merge to staging → Deploy to Cloud Run → Smoke checks
-```
+Cloud Run config:
+- us-central1
+- 512Mi memory
+- 0-10 instances (staging)
+- Secrets via Secret Manager
 
-### Cloud Run Configuration
+## What's next
 
-- **Region**: us-central1
-- **Memory**: 512Mi (increase for large datasets)
-- **Scaling**: 0-10 instances (staging), 0-100 (prod)
-- **Secrets**: GCP credentials via Secret Manager
+Done:
+- API spine
+- LangGraph + RAG
+- EDA playbooks
+- Causal gate
+- IPW + regression adjustment
+- Shadow mode
 
-### Health Checks
+Not done yet:
+- Chat UI
+- Multi-turn memory
+- More estimators (matching, diff-in-diff)
+- PDF reports
 
-- `/health` — Basic liveness
-- `/version` — Build info (git SHA, timestamp)
-- Smoke test: `/ask` with simple question
-
----
-
-## 📊 Trace Events
-
-All operations emit structured trace events for observability:
-
-| Event | When Emitted |
-|-------|--------------|
-| `LLM_PROVIDER_USED` | Every LLM call |
-| `SHADOW_LLM_RESULT` | Shadow mode completion |
-| `SHADOW_DIFF` | Shadow vs primary comparison |
-| `DIAGNOSTIC_RUN` | Causal gate check |
-| `ESTIMATION_COMPLETE` | Causal estimate returned |
-
----
-
-## 🗺️ Roadmap
-
-| Phase | Status | Description |
-|-------|--------|-------------|
-| Phase 0 | ✅ | API spine, contracts, validation |
-| Phase 1 | ✅ | LangGraph, RAG, Vertex AI |
-| Phase 2 | ✅ | EDA playbooks, dataset upload |
-| Phase 3 | ✅ | Causal safety gate |
-| Phase 4 | ✅ | Causal estimation (IPW, Regression Adj) |
-| Phase 5 | ✅ | Shadow mode, provider tracing |
-| Phase 6 | 🔲 | Chat UI |
-| Phase 7 | 🔲 | Multi-turn memory |
-| Phase 8 | 🔲 | More estimators (matching, DiD, sensitivity) |
-| Phase 9 | 🔲 | Report generation (PDF/HTML) |
-
----
-
-## 📄 License
+## License
 
 MIT
 
----
+## Contributing
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch from `dev`
-3. Write tests for new functionality
-4. Ensure CI passes (ruff + pytest + docker build)
-5. Open PR into `dev`
-
----
-
-Built with ❤️ using LangGraph, FastAPI, and Vertex AI
-
-
+1. Fork it
+2. Branch from `dev`
+3. Write tests
+4. Make sure CI passes
+5. Open a PR
