@@ -2,9 +2,99 @@
 Pydantic models for all API contracts.
 """
 
-from typing import Literal
+from datetime import datetime
+from typing import Literal, Protocol, runtime_checkable
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+# =============================================================================
+# Phase 6: Memory Layer Contracts
+# =============================================================================
+
+
+class ConversationTurn(BaseModel):
+    """A single turn in a conversation (user question + agent response)."""
+    turn_id: str  # UUID for this turn
+    timestamp: datetime
+    role: Literal["user", "assistant"]
+    content: str  # The question or answer text
+    # Optional metadata
+    route: str | None = None  # ANALYSIS, CAUSAL, etc.
+    artifacts_summary: list[str] = []  # Brief descriptions of artifacts produced
+    dataset_id: str | None = None
+    doc_id: str | None = None
+
+
+class SessionMemory(BaseModel):
+    """Memory for a single session (conversation history)."""
+    session_id: str
+    created_at: datetime
+    updated_at: datetime
+    doc_id: str | None = None  # Context doc for this session
+    dataset_id: str | None = None  # Dataset for this session
+    turns: list[ConversationTurn] = []
+    # Summary for long conversations (optional, for context window management)
+    conversation_summary: str | None = None
+    # User-provided context that persists across turns
+    user_context: dict = Field(default_factory=dict)
+
+
+class MemoryStats(BaseModel):
+    """Statistics about memory usage."""
+    total_sessions: int
+    total_turns: int
+    oldest_session: datetime | None = None
+    newest_session: datetime | None = None
+
+
+@runtime_checkable
+class MemoryStore(Protocol):
+    """Protocol for session memory storage backends."""
+
+    def get_session(self, session_id: str) -> SessionMemory | None:
+        """Get a session by ID. Returns None if not found."""
+        ...
+
+    def create_session(
+        self,
+        session_id: str,
+        doc_id: str | None = None,
+        dataset_id: str | None = None,
+    ) -> SessionMemory:
+        """Create a new session."""
+        ...
+
+    def add_turn(
+        self,
+        session_id: str,
+        role: Literal["user", "assistant"],
+        content: str,
+        route: str | None = None,
+        artifacts_summary: list[str] | None = None,
+    ) -> ConversationTurn:
+        """Add a turn to an existing session. Creates session if needed."""
+        ...
+
+    def get_recent_turns(
+        self,
+        session_id: str,
+        limit: int = 10,
+    ) -> list[ConversationTurn]:
+        """Get the most recent turns from a session."""
+        ...
+
+    def update_session_context(
+        self,
+        session_id: str,
+        context_updates: dict,
+    ) -> SessionMemory:
+        """Update user_context for a session (merge with existing)."""
+        ...
+
+    def delete_session(self, session_id: str) -> bool:
+        """Delete a session. Returns True if deleted, False if not found."""
+        ...
+
 
 # =============================================================================
 # Phase 4: Causal Confirmations and Estimation Artifacts
@@ -165,10 +255,20 @@ class AskQuestionRequest(BaseModel):
     causal_confirmations: CausalConfirmations | None = None
 
 
+class VersionInfo(BaseModel):
+    """Version information for reproducibility and tracking."""
+    api_version: str = "0.1.0"
+    prompt_version: str = "v1.0.0"
+    embedding_model: str | None = None
+    llm_model: str | None = None
+    segment_versions: list[dict] = []  # Versions of retrieved chunks used
+
+
 class AskQuestionResponse(BaseModel):
     """Response from asking a question."""
     answer_text: str
     router_decision: RouterDecision
     artifacts: list[Artifact]
     trace_id: str
+    version_info: VersionInfo | None = None  # Added for segment/prompt versioning
 

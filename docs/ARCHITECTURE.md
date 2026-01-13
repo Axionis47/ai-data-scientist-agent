@@ -10,6 +10,7 @@ This is a deterministic, testable foundation for an intelligent SDLC assistant.
 - **Phase 3**: Causal Safety Gate with structured diagnostics and readiness checks
 - **Phase 4**: Causal estimation with confirmations gating
 - **Phase 5**: Shadow mode for LLM comparison and provider tracing
+- **Phase 6**: Memory layer for session management and conversation history
 
 ## Design Principles
 
@@ -425,27 +426,139 @@ Shadow mode adds these trace events:
 3. **Regression Detection**: Detect when model updates change behavior
 4. **Cost Analysis**: Compare response quality vs latency/cost tradeoffs
 
-## Deferred Items (Phase 6+)
+## Phase 6: Memory Layer
 
-1. **Causal Effect Estimation** (Phase 4 - DONE):
-   - Inverse Probability Weighting (IPW)
-   - Augmented IPW (Doubly Robust)
-   - Propensity Score Matching
-   - Sensitivity Analysis (Rosenbaum bounds)
+### Overview
 
-2. **Vector Database**:
+The Memory Layer provides session management and conversation history for multi-turn interactions. Each session stores:
+- Conversation turns (user questions + assistant responses)
+- User-provided context that persists across turns
+- Associated doc_id and dataset_id
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                            Agent Graph Flow                                  │
+│                                                                             │
+│  [Entry] → load_memory → router → ... → build_response → save_memory → END │
+└─────────────────────────────────────────────────────────────────────────────┘
+                 │                                               │
+                 ▼                                               ▼
+        ┌─────────────────┐                            ┌─────────────────┐
+        │  MemoryStore    │                            │  MemoryStore    │
+        │  (protocol)     │                            │  (protocol)     │
+        └────────┬────────┘                            └────────┬────────┘
+                 │                                              │
+    ┌────────────┴────────────┐                   ┌────────────┴────────────┐
+    │    FileSessionStore     │                   │    (future)             │
+    │    storage/sessions/    │                   │    Redis/Firestore      │
+    └─────────────────────────┘                   └─────────────────────────┘
+```
+
+### Contracts
+
+```python
+class ConversationTurn(BaseModel):
+    turn_id: str
+    timestamp: datetime
+    role: Literal["user", "assistant"]
+    content: str
+    route: str | None = None
+    artifacts_summary: list[str] = []
+
+class SessionMemory(BaseModel):
+    session_id: str
+    created_at: datetime
+    updated_at: datetime
+    doc_id: str | None = None
+    dataset_id: str | None = None
+    turns: list[ConversationTurn] = []
+    conversation_summary: str | None = None
+    user_context: dict = {}
+```
+
+### MemoryStore Protocol
+
+All memory backends implement this protocol:
+
+```python
+class MemoryStore(Protocol):
+    def get_session(self, session_id: str) -> SessionMemory | None: ...
+    def create_session(self, session_id: str, ...) -> SessionMemory: ...
+    def add_turn(self, session_id: str, role: str, content: str, ...) -> ConversationTurn: ...
+    def get_recent_turns(self, session_id: str, limit: int = 10) -> list[ConversationTurn]: ...
+    def update_session_context(self, session_id: str, context: dict) -> SessionMemory: ...
+    def delete_session(self, session_id: str) -> bool: ...
+```
+
+### FileSessionStore (dev/test)
+
+For development and testing, sessions are stored as JSON files:
+
+```
+storage/sessions/{session_id}.json
+```
+
+This works for single-instance deployments. No external dependencies required.
+
+### Trace Events
+
+| Event | When Emitted |
+|-------|--------------|
+| `MEMORY_LOADED` | Session history loaded at start of request |
+| `MEMORY_SKIPPED` | No session_id provided (stateless request) |
+| `MEMORY_SAVED` | Turns saved after response |
+
+### Prompt Integration
+
+Conversation history is included in the LLM prompt:
+
+```
+PREVIOUS CONVERSATION:
+User: What is the dataset about?
+Assistant: The dataset contains customer data...
+
+CONTEXT (definitions and documentation):
+...
+
+User question: Tell me more about the customers
+```
+
+Recent turns are truncated (last 10 turns, assistant responses limited to 500 chars in prompt) to manage context window.
+
+### When to Migrate to Redis/Firestore
+
+Migrate from FileSessionStore when:
+- Running multiple Cloud Run instances (file storage is not shared)
+- Need session TTL/expiration
+- Need cross-user session analytics
+- Sessions exceed ~1MB (unlikely for conversation history)
+
+Migration path:
+1. Implement `RedisSessionStore` or `FirestoreSessionStore` following the `MemoryStore` protocol
+2. Update `get_memory_store()` in `memory.py` to return the new store for staging/prod
+3. Run data migration script if needed
+
+## Deferred Items (Phase 7+)
+
+1. **Vector Database**:
    - Migrate from file-based embeddings to Vertex AI Vector Search or Pinecone
    - Required for larger documents (>1000 chunks)
 
-3. **Reporting/Export**:
+2. **Reporting/Export**:
    - Implement REPORTING playbook
    - Generate PDF/HTML reports
    - Export data summaries
 
-4. **Authentication**:
+3. **Authentication**:
    - User auth via Firebase/Auth0
-   - Session management
    - Rate limiting
+
+4. **More Estimators**:
+   - Propensity Score Matching
+   - Difference-in-Differences
+   - Sensitivity Analysis (Rosenbaum bounds)
 
 ## Testing Strategy
 
@@ -453,7 +566,53 @@ Shadow mode adds these trace events:
 - **Integration Tests**: Full workflow tests with real .docx files
 - **Contract Tests**: Validate Pydantic models
 - **Docker Tests**: Build and run container
+- **Eval Tests**: Golden scenarios for regression checking
 - **CI/CD**: GitHub Actions on every PR
+
+### Eval Framework
+
+The eval framework runs golden scenarios to catch regressions in routing, playbook selection, and causal analysis.
+
+**Location**: `evals/scenarios.json` + `scripts/run_evals.py`
+
+**Run locally**:
+```bash
+python scripts/run_evals.py           # Run all scenarios
+python scripts/run_evals.py --verbose # Show detailed output
+python scripts/run_evals.py --json    # Output JSON results
+python scripts/run_evals.py --scenario route_causal_effect  # Run specific scenario
+```
+
+**Scenario structure**:
+```json
+{
+  "id": "route_causal_effect",
+  "description": "Causal effect question routes to CAUSAL",
+  "question": "What is the effect of X on Y?",
+  "use_causal_dataset": false,
+  "expected": {
+    "initial_route": "CAUSAL",
+    "route_confidence_min": 0.8
+  }
+}
+```
+
+**Supported expectations**:
+| Field | Description |
+|-------|-------------|
+| `route` | Final route in response |
+| `initial_route` | Initial router decision (from ROUTED trace event) |
+| `route_confidence_min` | Minimum route confidence |
+| `playbook` | Selected playbook name |
+| `causal_readiness_status` | Exact readiness status (PASS/WARN/FAIL) |
+| `causal_readiness_status_in` | Readiness status in list |
+| `has_causal_estimate` | Whether estimate was produced |
+| `estimate_method` | Estimation method used |
+| `artifact_types_include` | List of artifact types that must be present |
+| `trace_event_types_include` | List of trace events that must be present |
+| `llm_response_min_length` | Minimum LLM response length |
+
+**CI Integration**: Evals run as part of CI after pytest in `.github/workflows/ci.yml`.
 
 ## Security Considerations
 

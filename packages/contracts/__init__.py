@@ -20,6 +20,7 @@ from .models import (
     TraceEvent,
     UploadContextDocResponse,
     UploadDatasetResponse,
+    VersionInfo,
 )
 
 __all__ = [
@@ -41,5 +42,7 @@ __all__ = [
     # Phase 4: Causal estimation
     "CausalConfirmations",
     "CausalEstimateArtifact",
+    # Versioning
+    "VersionInfo",
 ]
 

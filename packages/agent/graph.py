@@ -4,6 +4,7 @@ LangGraph-based agent graph for RAG question answering with EDA playbooks.
 Phase 3: Added causal gate integration for CAUSAL route.
 Phase 4: Added causal estimation with confirmations gating.
 Phase 5: Added LLM provider tracking and shadow mode.
+Phase 6: Added memory layer for conversation history.
 """
 
 import json
@@ -27,6 +28,7 @@ from .llm_provider import (
     get_shadow_client,
     run_shadow_call,
 )
+from .memory import MemoryStore, get_memory_store
 from .planner import select_playbook
 from .retrieval import retrieve_top_k
 from .tools_causal_estimation import run_causal_estimation, select_estimator
@@ -72,6 +74,9 @@ class AgentState(TypedDict, total=False):
     causal_confirmations: dict | None  # CausalConfirmations as dict
     confirmations_ok: bool  # True if confirmations valid and ok_to_estimate=True
     causal_estimate: dict | None  # CausalEstimateArtifact as dict
+
+    # Memory (Phase 6)
+    conversation_history: list[dict]  # Recent ConversationTurns as dicts
 
     # Artifacts
     artifacts: list[dict]
@@ -146,6 +151,79 @@ def route_node(state: AgentState) -> dict:
     }
 
 
+def load_memory_node(state: AgentState, memory_store: MemoryStore) -> dict:
+    """Load conversation history from memory store."""
+    session_id = state.get("session_id")
+    trace_events = state.get("trace_events", [])
+
+    if not session_id:
+        # No session, no memory to load
+        trace_events = trace_events + [{
+            "event_type": "MEMORY_SKIPPED",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "payload": {"reason": "no_session_id"},
+        }]
+        return {"conversation_history": [], "trace_events": trace_events}
+
+    # Load recent turns
+    turns = memory_store.get_recent_turns(session_id, limit=10)
+    history = [
+        {
+            "role": t.role,
+            "content": t.content,
+            "route": t.route,
+            "timestamp": t.timestamp.isoformat() if t.timestamp else None,
+        }
+        for t in turns
+    ]
+
+    trace_events = trace_events + [{
+        "event_type": "MEMORY_LOADED",
+        "timestamp": datetime.now(UTC).isoformat(),
+        "payload": {"session_id": session_id, "num_turns": len(history)},
+    }]
+
+    return {"conversation_history": history, "trace_events": trace_events}
+
+
+def save_memory_node(state: AgentState, memory_store: MemoryStore) -> dict:
+    """Save the current turn to memory store."""
+    session_id = state.get("session_id")
+    trace_events = state.get("trace_events", [])
+
+    if not session_id:
+        return {"trace_events": trace_events}
+
+    # Save user turn
+    memory_store.add_turn(
+        session_id=session_id,
+        role="user",
+        content=state["question"],
+        route=state.get("route"),
+    )
+
+    # Save assistant turn
+    answer = state.get("llm_response", "")
+    artifacts = state.get("artifacts", [])
+    artifacts_summary = [a.get("type", "unknown") for a in artifacts[:5]]
+
+    memory_store.add_turn(
+        session_id=session_id,
+        role="assistant",
+        content=answer,
+        route=state.get("route"),
+        artifacts_summary=artifacts_summary,
+    )
+
+    trace_events = trace_events + [{
+        "event_type": "MEMORY_SAVED",
+        "timestamp": datetime.now(UTC).isoformat(),
+        "payload": {"session_id": session_id, "turns_added": 2},
+    }]
+
+    return {"trace_events": trace_events}
+
+
 def retrieve_context_node(
     state: AgentState,
     embeddings_client: EmbeddingsClient,
@@ -185,13 +263,27 @@ def retrieve_context_node(
 
 
 def compose_prompt_node(state: AgentState) -> dict:
-    """Compose the prompt for the LLM with retrieved context and playbook results."""
+    """Compose the prompt for the LLM with retrieved context, history, and playbook results."""
     system_instruction = (
         "You are a helpful data analysis assistant. "
         "Answer the user's question using the provided context and analysis results. "
         "Reference specific numbers and findings from the analysis. "
         "Be concise and accurate."
     )
+
+    # Format conversation history (Phase 6)
+    history_parts = []
+    for turn in state.get("conversation_history", []):
+        role = turn.get("role", "unknown")
+        content = turn.get("content", "")
+        if role == "user":
+            history_parts.append(f"User: {content}")
+        else:
+            # Truncate long assistant responses in history
+            truncated = content[:500] + "..." if len(content) > 500 else content
+            history_parts.append(f"Assistant: {truncated}")
+
+    history_text = "\n".join(history_parts) if history_parts else ""
 
     # Format retrieved chunks (context document)
     context_parts = []
@@ -222,7 +314,24 @@ def compose_prompt_node(state: AgentState) -> dict:
 
     analysis_text = "\n\n".join(analysis_parts) if analysis_parts else "(No analysis results)"
 
-    prompt = f"""{system_instruction}
+    # Build prompt with optional history section
+    if history_text:
+        prompt = f"""{system_instruction}
+
+PREVIOUS CONVERSATION:
+{history_text}
+
+CONTEXT (definitions and documentation):
+{context_text}
+
+ANALYSIS RESULTS:
+{analysis_text}
+
+User question: {state["question"]}
+
+Answer:"""
+    else:
+        prompt = f"""{system_instruction}
 
 CONTEXT (definitions and documentation):
 {context_text}
@@ -620,7 +729,7 @@ def check_confirmations_node(state: AgentState) -> dict:
     Check if user has provided required confirmations for causal estimation.
 
     Phase 4: Estimation only proceeds if:
-    1. causal_readiness_status == PASS
+    1. causal_readiness_status is PASS or WARN (not FAIL)
     2. causal_confirmations is provided
     3. causal_confirmations.ok_to_estimate == True
     4. Treatment is binary (already checked in gate)
@@ -640,8 +749,8 @@ def check_confirmations_node(state: AgentState) -> dict:
         },
     }]
 
-    # If readiness is not PASS, cannot estimate
-    if readiness_status != "PASS":
+    # If readiness is FAIL, cannot estimate (WARN can proceed with confirmations)
+    if readiness_status == "FAIL":
         return {
             "confirmations_ok": False,
             "trace_events": trace_events,
@@ -824,6 +933,7 @@ def create_agent_graph(
     storage_dir: Path,
     datasets_dir: Path | None = None,
     provider_info: LLMProviderInfo | None = None,
+    memory_store: MemoryStore | None = None,
 ) -> StateGraph:
     """
     Create the LangGraph agent graph.
@@ -834,6 +944,7 @@ def create_agent_graph(
         storage_dir: Path to document storage
         datasets_dir: Path to dataset storage (for playbooks)
         provider_info: LLM provider information for tracing (Phase 5)
+        memory_store: Session memory store (Phase 6)
 
     Returns:
         Compiled StateGraph
@@ -842,8 +953,16 @@ def create_agent_graph(
     if datasets_dir is None:
         datasets_dir = storage_dir.parent / "datasets"
 
+    # Default memory store if not provided
+    if memory_store is None:
+        memory_store = get_memory_store()
+
     # Create graph with state schema
     graph = StateGraph(AgentState)
+
+    # Phase 6: Memory nodes
+    graph.add_node("load_memory", lambda s: load_memory_node(s, memory_store))
+    graph.add_node("save_memory", lambda s: save_memory_node(s, memory_store))
 
     # Add nodes (note: node names must not conflict with state keys)
     graph.add_node("router", route_node)
@@ -862,8 +981,9 @@ def create_agent_graph(
     graph.add_node("check_confirmations", check_confirmations_node)
     graph.add_node("run_estimation", lambda s: run_estimation_node(s, datasets_dir))
 
-    # Define edges
-    graph.set_entry_point("router")
+    # Define edges - Phase 6: start with load_memory
+    graph.set_entry_point("load_memory")
+    graph.add_edge("load_memory", "router")
 
     # Conditional routing based on route type
     def route_after_router(state: AgentState) -> str:
@@ -888,9 +1008,10 @@ def create_agent_graph(
     graph.add_edge("causal_gate", "causal_decide_next")
 
     # After causal_decide_next, check if we should proceed to estimation
+    # PASS and WARN can proceed to confirmations; FAIL cannot
     def route_after_causal_decide(state: AgentState) -> str:
         readiness = state.get("causal_readiness_status", "FAIL")
-        if readiness == "PASS":
+        if readiness in ["PASS", "WARN"]:
             return "check_confirmations"
         return "build_response"
 
@@ -926,7 +1047,10 @@ def create_agent_graph(
     graph.add_edge("execute_playbook", "compose_prompt")
     graph.add_edge("compose_prompt", "call_llm")
     graph.add_edge("call_llm", "build_response")
-    graph.add_edge("build_response", END)
+
+    # Phase 6: save memory after response, then end
+    graph.add_edge("build_response", "save_memory")
+    graph.add_edge("save_memory", END)
 
     return graph.compile()
 
@@ -943,6 +1067,7 @@ def run_agent(
     causal_spec_override: CausalSpecOverride | dict | None = None,
     causal_confirmations: CausalConfirmations | dict | None = None,
     provider_info: LLMProviderInfo | None = None,
+    memory_store: MemoryStore | None = None,
 ) -> AgentState:
     """
     Run the agent graph and return the final state.
@@ -959,6 +1084,7 @@ def run_agent(
         causal_spec_override: Optional causal specification override (Phase 3)
         causal_confirmations: Optional causal confirmations for estimation (Phase 4)
         provider_info: LLM provider information for tracing (Phase 5)
+        memory_store: Session memory store (Phase 6)
 
     Returns:
         Final AgentState (dict) with response
@@ -966,7 +1092,12 @@ def run_agent(
     import uuid as uuid_module
 
     graph = create_agent_graph(
-        embeddings_client, llm_client, storage_dir, datasets_dir, provider_info
+        embeddings_client,
+        llm_client,
+        storage_dir,
+        datasets_dir,
+        provider_info,
+        memory_store,
     )
 
     # Convert CausalSpecOverride to dict if needed
@@ -1008,6 +1139,7 @@ def run_agent(
         "causal_confirmations": confirmations_dict,
         "confirmations_ok": False,
         "causal_estimate": None,
+        "conversation_history": [],  # Phase 6: loaded by load_memory_node
     }
 
     final_state = graph.invoke(initial_state)

@@ -512,8 +512,21 @@ class TestConfirmationsGating:
 
         assert result["confirmations_ok"] is True
 
-    def test_check_confirmations_readiness_not_pass(self):
-        """Should block estimation when readiness is not PASS."""
+    def test_check_confirmations_readiness_fail_blocks(self):
+        """Should block estimation when readiness is FAIL."""
+        state = {
+            "causal_readiness_status": "FAIL",
+            "causal_confirmations": {"ok_to_estimate": True},
+            "trace_events": [],
+            "artifacts": [],
+        }
+
+        result = check_confirmations_node(state)
+
+        assert result["confirmations_ok"] is False
+
+    def test_check_confirmations_readiness_warn_allows(self):
+        """Should allow estimation when readiness is WARN with confirmations."""
         state = {
             "causal_readiness_status": "WARN",
             "causal_confirmations": {"ok_to_estimate": True},
@@ -523,7 +536,8 @@ class TestConfirmationsGating:
 
         result = check_confirmations_node(state)
 
-        assert result["confirmations_ok"] is False
+        # WARN can proceed with confirmations (user acknowledged warnings)
+        assert result["confirmations_ok"] is True
 
 
 class TestTracePersistence:

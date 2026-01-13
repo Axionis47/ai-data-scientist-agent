@@ -31,7 +31,11 @@ jobs:
     - name: Run pytest
       run: |
         pytest services/api/tests/ -v
-  
+
+    - name: Run evals (golden scenarios)
+      run: |
+        python scripts/run_evals.py
+
   docker-build:
     runs-on: ubuntu-latest
     
