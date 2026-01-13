@@ -30,7 +30,7 @@ from .llm_provider import (
 )
 from .memory import MemoryStore, get_memory_store
 from .planner import select_playbook
-from .retrieval import retrieve_top_k
+from .retrieval import retrieve_for_causal, retrieve_top_k
 from .tools_causal_estimation import run_causal_estimation, select_estimator
 from .tools_eda import (
     EDAToolError,
@@ -256,6 +256,67 @@ def retrieve_context_node(
     except FileNotFoundError:
         trace_events = trace_events + [{
             "event_type": "RETRIEVED",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "payload": {"error": "embeddings_not_found"},
+        }]
+        return {"retrieved_chunks": [], "trace_events": trace_events}
+
+
+def retrieve_causal_context_node(
+    state: AgentState,
+    embeddings_client: EmbeddingsClient,
+    storage_dir: Path,
+) -> dict:
+    """
+    Retrieve context specifically for causal analysis.
+
+    Uses specialized retrieval that prioritizes:
+    - Known Caveats section (potential confounders, biases)
+    - Causal Assumptions section
+    - Data Dictionary (variable definitions for confounders)
+
+    This ensures the causal gate has access to documented assumptions.
+    """
+    trace_events = state.get("trace_events", [])
+
+    try:
+        chunks = retrieve_for_causal(
+            doc_id=state["doc_id"],
+            query=state["question"],
+            embeddings_client=embeddings_client,
+            storage_dir=storage_dir,
+        )
+
+        # Serialize chunks to dict
+        retrieved = [
+            {
+                "chunk_index": c.chunk_index,
+                "text": c.text,
+                "score": c.score,
+                "section": c.section,
+            }
+            for c in chunks
+        ]
+
+        # Track which sections were found
+        sections_found = list({c.section for c in chunks if c.section})
+
+        trace_events = trace_events + [{
+            "event_type": "CAUSAL_CONTEXT_RETRIEVED",
+            "timestamp": datetime.now(UTC).isoformat(),
+            "payload": {
+                "num_chunks": len(chunks),
+                "chunk_indices": [c.chunk_index for c in chunks],
+                "scores": [c.score for c in chunks],
+                "sections_found": sections_found,
+            },
+        }]
+
+        return {"retrieved_chunks": retrieved, "trace_events": trace_events}
+
+    except FileNotFoundError:
+        trace_events = trace_events + [{
+            "event_type": "CAUSAL_CONTEXT_RETRIEVED",
             "timestamp": datetime.now(UTC).isoformat(),
             "payload": {"error": "embeddings_not_found"},
         }]
@@ -565,6 +626,8 @@ def causal_gate_node(state: AgentState, datasets_dir: Path) -> dict:
     Run the causal readiness gate and return structured report.
 
     Phase 3: Never returns ATE - only readiness assessment and diagnostics.
+
+    Now uses retrieved context to inform assumptions and confounder identification.
     """
     trace_events = state.get("trace_events", [])
     artifacts = state.get("artifacts", [])
@@ -573,6 +636,9 @@ def causal_gate_node(state: AgentState, datasets_dir: Path) -> dict:
     doc_id = state.get("doc_id", "")
     question = state.get("question", "")
     spec_override = state.get("causal_spec_override")
+
+    # Get retrieved context chunks (added in retrieve_causal_context_node)
+    retrieved_chunks = state.get("retrieved_chunks", [])
 
     # Load dataset metadata if available
     column_names: list[str] = []
@@ -595,10 +661,26 @@ def causal_gate_node(state: AgentState, datasets_dir: Path) -> dict:
         inferred_types=inferred_types,
         datasets_dir=datasets_dir,
         spec_override=spec_override,
+        # Pass context for future use (could inform confounder inference)
+        # context_text=causal_context,  # Reserved for future enhancement
     )
 
     # Convert report to dict for serialization
     report_dict = report.model_dump()
+
+    # Add retrieved causal context as an artifact for transparency
+    if retrieved_chunks:
+        context_summary = []
+        for chunk in retrieved_chunks[:5]:  # Limit to top 5
+            section = chunk.get("section", "Unknown")
+            score = chunk.get("score", 0)
+            text = chunk.get("text", "")[:150]
+            context_summary.append(f"[{section}] (score: {score:.3f}): {text}...")
+
+        artifacts.append({
+            "type": "text",
+            "content": "📚 Retrieved causal context:\n" + "\n".join(context_summary),
+        })
 
     # Add diagnostics as artifacts
     for diag in report.diagnostics:
@@ -617,6 +699,7 @@ def causal_gate_node(state: AgentState, datasets_dir: Path) -> dict:
             "readiness_status": report.readiness_status,
             "n_diagnostics": len(report.diagnostics),
             "ready_for_estimation": report.ready_for_estimation,
+            "context_chunks_used": len(retrieved_chunks),
         },
     }]
 
@@ -974,6 +1057,8 @@ def create_agent_graph(
     graph.add_node("build_response", build_response_node)
 
     # Phase 3: Causal gate nodes
+    # NEW: Retrieve causal context before running the gate
+    graph.add_node("retrieve_causal_context", lambda s: retrieve_causal_context_node(s, embeddings_client, storage_dir))
     graph.add_node("causal_gate", lambda s: causal_gate_node(s, datasets_dir))
     graph.add_node("causal_decide_next", causal_decide_next_node)
 
@@ -989,7 +1074,8 @@ def create_agent_graph(
     def route_after_router(state: AgentState) -> str:
         route = state.get("route", "ANALYSIS")
         if route == "CAUSAL":
-            return "causal_gate"
+            # NEW: Route to causal context retrieval first
+            return "retrieve_causal_context"
         elif route in ["NEEDS_CLARIFICATION", "REPORTING"]:
             return "build_response"
         return "retrieve_context"
@@ -998,13 +1084,14 @@ def create_agent_graph(
         "router",
         route_after_router,
         {
-            "causal_gate": "causal_gate",
+            "retrieve_causal_context": "retrieve_causal_context",  # NEW
             "retrieve_context": "retrieve_context",
             "build_response": "build_response",
         }
     )
 
-    # Causal gate flow: gate -> decide -> check confirmations -> estimation -> response
+    # Causal flow: retrieve context -> gate -> decide -> check confirmations -> estimation -> response
+    graph.add_edge("retrieve_causal_context", "causal_gate")  # NEW
     graph.add_edge("causal_gate", "causal_decide_next")
 
     # After causal_decide_next, check if we should proceed to estimation

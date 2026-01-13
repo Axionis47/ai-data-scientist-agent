@@ -82,6 +82,20 @@ MIN_CONTENT_LENGTH = 800
 CHUNK_SIZE = 500
 CHUNK_OVERLAP = 100
 
+# Section headers in context documents (used for section-aware chunking)
+SECTION_HEADERS = [
+    "Dataset Overview",
+    "Target Use / Primary Questions",
+    "Data Dictionary",
+    "Known Caveats",
+    # Common additional sections
+    "Causal Assumptions",
+    "Variable Definitions",
+    "Data Collection",
+    "Limitations",
+    "Notes",
+]
+
 
 def get_embeddings_client():
     """Get the appropriate embeddings client based on environment."""
@@ -248,25 +262,136 @@ def validate_required_headings(text: str) -> list[str]:
     return missing
 
 
+def find_sections(text: str, section_headers: list[str] = SECTION_HEADERS) -> list[dict]:
+    """
+    Find section boundaries in text based on known headers.
+
+    Returns list of dicts with 'header', 'start', 'end' for each section found.
+    """
+    import re
+
+    sections = []
+    header_positions = []
+
+    # Find all header positions
+    for header in section_headers:
+        # Look for header at start of line (with possible markdown formatting)
+        pattern = rf"^#*\s*{re.escape(header)}\s*$"
+        for match in re.finditer(pattern, text, re.MULTILINE | re.IGNORECASE):
+            header_positions.append({
+                "header": header,
+                "start": match.start(),
+            })
+
+    # Also try simple line matching
+    for header in section_headers:
+        idx = text.find(header)
+        if idx != -1:
+            # Check if not already found
+            already_found = any(p["start"] == idx for p in header_positions)
+            if not already_found:
+                header_positions.append({
+                    "header": header,
+                    "start": idx,
+                })
+
+    # Sort by position
+    header_positions.sort(key=lambda x: x["start"])
+
+    # Build sections with end positions
+    for i, pos in enumerate(header_positions):
+        end = header_positions[i + 1]["start"] if i + 1 < len(header_positions) else len(text)
+        sections.append({
+            "header": pos["header"],
+            "start": pos["start"],
+            "end": end,
+            "text": text[pos["start"]:end].strip(),
+        })
+
+    return sections
+
+
 def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP) -> list[dict]:
-    """Deterministically chunk text with overlap."""
+    """
+    Deterministically chunk text with overlap and section awareness.
+
+    Improvements over naive chunking:
+    1. Detects section boundaries and includes section metadata
+    2. Tries to keep chunks within sections when possible
+    3. Avoids splitting mid-sentence when feasible
+    """
+    chunks = []
+    chunk_index = 0
+
+    # Find sections in the document
+    sections = find_sections(text)
+
+    if not sections:
+        # Fallback to naive chunking if no sections found
+        return _naive_chunk_text(text, chunk_size, overlap)
+
+    # Chunk each section separately to maintain section context
+    for section in sections:
+        section_text = section["text"]
+        section_header = section["header"]
+        section_start = 0
+
+        while section_start < len(section_text):
+            section_end = section_start + chunk_size
+
+            # Try to break at sentence boundary (., !, ?) if we're mid-section
+            if section_end < len(section_text):
+                # Look for sentence end within last 100 chars of chunk
+                search_start = max(section_start, section_end - 100)
+                search_text = section_text[search_start:section_end]
+
+                # Find last sentence-ending punctuation
+                last_period = search_text.rfind(". ")
+                last_exclaim = search_text.rfind("! ")
+                last_question = search_text.rfind("? ")
+                last_newline = search_text.rfind("\n\n")
+
+                best_break = max(last_period, last_exclaim, last_question, last_newline)
+                if best_break > 0:
+                    section_end = search_start + best_break + 1
+
+            chunk_text_content = section_text[section_start:section_end].strip()
+
+            if chunk_text_content:  # Don't add empty chunks
+                chunks.append({
+                    "chunk_index": chunk_index,
+                    "text": chunk_text_content,
+                    "section": section_header,
+                })
+                chunk_index += 1
+
+            # Move forward, but not past the end
+            section_start = section_end - overlap
+            if section_start >= len(section_text):
+                break
+
+    return chunks
+
+
+def _naive_chunk_text(text: str, chunk_size: int, overlap: int) -> list[dict]:
+    """Fallback naive chunking without section awareness."""
     chunks = []
     start = 0
     chunk_index = 0
 
     while start < len(text):
         end = start + chunk_size
-        chunk_text = text[start:end]
+        chunk_text_content = text[start:end]
 
         chunks.append({
             "chunk_index": chunk_index,
-            "text": chunk_text,
+            "text": chunk_text_content,
+            "section": None,
         })
 
         chunk_index += 1
         start = end - overlap
 
-        # Prevent infinite loop
         if start >= len(text):
             break
 

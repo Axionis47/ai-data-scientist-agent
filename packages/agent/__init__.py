@@ -21,7 +21,13 @@ from .llm_provider import (
     should_use_vertex,
 )
 from .planner import PlaybookSelection, select_playbook
-from .retrieval import RetrievedChunk, embed_and_store_chunks, retrieve_top_k
+from .retrieval import (
+    RetrievalConfig,
+    RetrievedChunk,
+    embed_and_store_chunks,
+    retrieve_for_causal,
+    retrieve_top_k,
+)
 from .tools_eda import (
     EDAToolError,
     correlation,
@@ -45,9 +51,13 @@ __all__ = [
     "LLMClient",
     "FakeEmbeddingsClient",
     "FakeLLMClient",
+    # Retrieval
+    "RetrievalConfig",
     "RetrievedChunk",
     "embed_and_store_chunks",
+    "retrieve_for_causal",
     "retrieve_top_k",
+    # Agent
     "AgentState",
     "run_agent",
     # LLM provider
