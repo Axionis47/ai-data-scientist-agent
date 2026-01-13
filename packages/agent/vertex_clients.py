@@ -92,11 +92,12 @@ class VertexEmbeddingsClient:
             try:
                 from langchain_google_vertexai import VertexAIEmbeddings
 
+                # Note: VertexAIEmbeddings doesn't support request_timeout
+                # The timeout is handled at the gRPC level by google-cloud-aiplatform
                 self._client = VertexAIEmbeddings(
                     project=self.project,
                     location=self.location,
                     model_name=self.model,
-                    request_timeout=self.timeout,
                 )
             except ImportError as e:
                 raise ImportError(
@@ -155,13 +156,14 @@ class VertexLLMClient:
             try:
                 from langchain_google_vertexai import ChatVertexAI
 
+                # Note: ChatVertexAI doesn't support request_timeout directly
+                # The timeout is handled at the gRPC level by google-cloud-aiplatform
                 self._client = ChatVertexAI(
                     project=self.project,
                     location=self.location,
                     model_name=self.model,
                     temperature=0,  # Phase 4: deterministic output
                     max_output_tokens=2048,
-                    request_timeout=self.timeout,
                 )
             except ImportError as e:
                 raise ImportError(
