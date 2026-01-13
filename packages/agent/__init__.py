@@ -30,6 +30,15 @@ from .tools_eda import (
     time_trend,
     univariate_summary,
 )
+from .versioning import (
+    PROMPT_VERSIONS,
+    PromptVersion,
+    SegmentVersion,
+    VersionManifest,
+    create_segment_version,
+    create_version_manifest,
+    get_prompt_version,
+)
 
 __all__ = [
     "EmbeddingsClient",
@@ -56,5 +65,13 @@ __all__ = [
     "groupby_aggregate",
     "time_trend",
     "correlation",
+    # Versioning
+    "PROMPT_VERSIONS",
+    "PromptVersion",
+    "SegmentVersion",
+    "VersionManifest",
+    "create_segment_version",
+    "create_version_manifest",
+    "get_prompt_version",
 ]
 

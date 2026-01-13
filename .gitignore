@@ -40,9 +40,11 @@ htmlcov/
 .tox/
 .nox/
 
-# Storage (uploaded files)
+# Storage (uploaded files and runtime data)
 services/api/storage/contexts/
 services/api/storage/datasets/
+services/api/storage/traces/
+storage/sessions/
 
 # Environment
 .env

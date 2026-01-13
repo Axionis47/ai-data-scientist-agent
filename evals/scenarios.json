@@ -1,0 +1,152 @@
+{
+  "version": "1.0",
+  "description": "Golden scenarios for eval regression testing. Tests routing, playbooks, causal gate, and trace events.",
+  "scenarios": [
+    {
+      "id": "route_causal_effect",
+      "description": "Causal effect question initially routes to CAUSAL (matches 'effect' pattern)",
+      "question": "What is the effect of X on Y?",
+      "expected": {
+        "initial_route": "CAUSAL"
+      }
+    },
+    {
+      "id": "route_causal_causes",
+      "description": "Causes question initially routes to CAUSAL",
+      "question": "Does treatment cause better outcomes?",
+      "expected": {
+        "initial_route": "CAUSAL"
+      }
+    },
+    {
+      "id": "route_analysis_overview",
+      "description": "Overview question routes to ANALYSIS with OVERVIEW playbook",
+      "question": "Give me an overview of this dataset",
+      "expected": {
+        "initial_route": "ANALYSIS",
+        "playbook": "OVERVIEW"
+      }
+    },
+    {
+      "id": "route_analysis_describe",
+      "description": "Describe question routes to ANALYSIS with OVERVIEW",
+      "question": "Describe the data in this dataset",
+      "expected": {
+        "initial_route": "ANALYSIS",
+        "playbook": "OVERVIEW"
+      }
+    },
+    {
+      "id": "route_analysis_groupby",
+      "description": "Groupby question routes to ANALYSIS (playbook depends on column presence)",
+      "question": "What is the average income by region?",
+      "expected": {
+        "initial_route": "ANALYSIS"
+      }
+    },
+    {
+      "id": "route_analysis_trend",
+      "description": "Trend question routes to ANALYSIS",
+      "question": "Show me the trend over time",
+      "expected": {
+        "initial_route": "ANALYSIS"
+      }
+    },
+    {
+      "id": "route_analysis_correlation",
+      "description": "Correlation question routes to ANALYSIS (playbook depends on column presence)",
+      "question": "What is the correlation between age and income?",
+      "expected": {
+        "initial_route": "ANALYSIS"
+      }
+    },
+    {
+      "id": "route_reporting",
+      "description": "Report question routes to REPORTING",
+      "question": "Generate a report of the analysis",
+      "expected": {
+        "initial_route": "REPORTING",
+        "route": "REPORTING"
+      }
+    },
+    {
+      "id": "causal_gate_pass",
+      "description": "Balanced causal dataset passes gate (PASS or WARN acceptable)",
+      "question": "What is the effect of treatment on outcome?",
+      "use_causal_dataset": true,
+      "expected": {
+        "initial_route": "CAUSAL",
+        "causal_readiness_status_in": ["PASS", "WARN"]
+      }
+    },
+    {
+      "id": "causal_gate_fail_no_dataset",
+      "description": "Causal question without dataset fails gate (final route is NEEDS_CLARIFICATION)",
+      "question": "What is the effect of treatment on outcome?",
+      "skip_dataset": true,
+      "expected": {
+        "initial_route": "CAUSAL",
+        "causal_readiness_status": "FAIL",
+        "route": "NEEDS_CLARIFICATION"
+      }
+    },
+    {
+      "id": "causal_estimation_with_confirmations",
+      "description": "Causal estimation runs with confirmations and produces estimate",
+      "question": "What is the effect of treatment on outcome?",
+      "use_causal_dataset": true,
+      "causal_confirmations": {
+        "assignment_mechanism": "randomized",
+        "interference": "no_interference",
+        "missing_data_policy": "listwise_delete",
+        "ok_to_estimate": true
+      },
+      "expected": {
+        "initial_route": "CAUSAL",
+        "has_causal_estimate": true,
+        "estimate_method": "regression_adjustment"
+      }
+    },
+    {
+      "id": "causal_estimation_blocked",
+      "description": "Causal estimation blocked when ok_to_estimate is false",
+      "question": "What is the effect of treatment on outcome?",
+      "use_causal_dataset": true,
+      "causal_confirmations": {
+        "assignment_mechanism": "randomized",
+        "ok_to_estimate": false
+      },
+      "expected": {
+        "initial_route": "CAUSAL",
+        "has_causal_estimate": false,
+        "route": "NEEDS_CLARIFICATION"
+      }
+    },
+    {
+      "id": "eda_overview_produces_artifacts",
+      "description": "Overview playbook produces text artifacts",
+      "question": "Give me an overview of this dataset",
+      "expected": {
+        "playbook": "OVERVIEW",
+        "artifact_types_include": ["text"]
+      }
+    },
+    {
+      "id": "trace_events_routed_and_playbook",
+      "description": "Response includes ROUTED and PLAYBOOK_SELECTED trace events",
+      "question": "Give me an overview of the dataset",
+      "expected": {
+        "trace_event_types_include": ["ROUTED", "PLAYBOOK_SELECTED"]
+      }
+    },
+    {
+      "id": "llm_response_not_empty",
+      "description": "LLM response is never empty for any question",
+      "question": "Tell me about the data",
+      "expected": {
+        "llm_response_min_length": 10
+      }
+    }
+  ]
+}
+

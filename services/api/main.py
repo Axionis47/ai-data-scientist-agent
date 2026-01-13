@@ -42,6 +42,7 @@ from packages.contracts import (
     TextArtifact,
     UploadContextDocResponse,
     UploadDatasetResponse,
+    VersionInfo,
 )
 
 # Configure logging
@@ -547,7 +548,7 @@ async def upload_dataset(file: UploadFile = File(...)):
 
 
 @app.post("/ask", response_model=AskQuestionResponse)
-async def ask_question(request: AskQuestionRequest):
+async def ask_question(request: AskQuestionRequest):  # noqa: PLR0915
     """
     Ask a question using the RAG agent with EDA playbooks.
 
@@ -699,6 +700,23 @@ async def ask_question(request: AskQuestionRequest):
         except Exception as e:
             logger.error(f"Failed to persist trace: {e}")
 
+    # Build version info for reproducibility
+    retrieved_chunks = final_state.get("retrieved_chunks", [])
+    segment_versions = []
+    for chunk in retrieved_chunks:
+        segment_versions.append({
+            "chunk_index": chunk.get("chunk_index"),
+            "score": chunk.get("score"),
+        })
+
+    version_info = VersionInfo(
+        api_version="0.1.0",
+        prompt_version=provider_info.prompt_version,
+        embedding_model="text-embedding-005" if APP_ENV in ("staging", "prod") else "fake",
+        llm_model=provider_info.model,
+        segment_versions=segment_versions,
+    )
+
     return AskQuestionResponse(
         answer_text=final_state.get("llm_response") or "No response generated.",
         router_decision=RouterDecision(
@@ -708,5 +726,6 @@ async def ask_question(request: AskQuestionRequest):
         ),
         artifacts=artifacts,
         trace_id=trace_id,
+        version_info=version_info,
     )
 
