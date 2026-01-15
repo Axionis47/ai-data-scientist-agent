@@ -54,3 +54,10 @@ storage/sessions/
 # macOS
 .DS_Store
 
+# Kaggle casepack raw data (large datasets not committed)
+evals/casepacks/**/raw/
+evals/casepacks/**/*.zip
+
+# Kaggle credentials (never commit)
+kaggle.json
+

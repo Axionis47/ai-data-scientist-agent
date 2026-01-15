@@ -1,0 +1,28 @@
+{
+  "kaggle_slug": "mexwell/correlates-of-state-policy-dataset",
+  "description": "State policy correlates panel dataset",
+  "created_utc": "2026-01-15T21:34:07.609843+00:00",
+  "raw_files": [
+    "codebook_2-6.csv",
+    "correlates2-6.csv",
+    "codebook_2-6.pdf"
+  ],
+  "sample_files": [
+    {
+      "filename": "codebook_2-6.csv",
+      "rows": 2000,
+      "sha256": "3f4cd0c0c32413b31732d4fbf4af1531692f9b7cb7b828cde9454bc22a604507",
+      "size_bytes": 1886511,
+      "sampling_method": "head_2000",
+      "source_rows": 3014
+    },
+    {
+      "filename": "correlates2-6.csv",
+      "rows": 2000,
+      "sha256": "02567fc54d39c300ca5ce8ecec560302f9625598b719856985010e2e8a5f894d",
+      "size_bytes": 22267784,
+      "sampling_method": "head_2000",
+      "source_rows": 6171
+    }
+  ]
+}

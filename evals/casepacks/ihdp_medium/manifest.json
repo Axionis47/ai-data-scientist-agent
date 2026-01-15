@@ -1,0 +1,18 @@
+{
+  "kaggle_slug": "konradb/ihdp-data",
+  "description": "Infant Health and Development Program dataset",
+  "created_utc": "2026-01-15T21:34:05.683373+00:00",
+  "raw_files": [
+    "ihdp_data.csv"
+  ],
+  "sample_files": [
+    {
+      "filename": "ihdp_data.csv",
+      "rows": 747,
+      "sha256": "00cb3cde39aa7924d75ac21164c9ed4dfef75ef9e9c027aa39b966dd0b7d65fc",
+      "size_bytes": 165608,
+      "sampling_method": "full_copy",
+      "source_rows": 747
+    }
+  ]
+}

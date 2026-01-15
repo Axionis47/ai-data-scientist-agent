@@ -1,0 +1,27 @@
+{
+  "kaggle_slug": "amirmotefaker/ab-testing-dataset",
+  "description": "A/B testing dataset for easy causal inference",
+  "created_utc": "2026-01-15T21:34:05.151955+00:00",
+  "raw_files": [
+    "test_group.csv",
+    "control_group.csv"
+  ],
+  "sample_files": [
+    {
+      "filename": "test_group.csv",
+      "rows": 30,
+      "sha256": "c1a20b368ce9044f0f06f0e953f89bdad02567a2b0bc3780005d98ea99bb3038",
+      "size_bytes": 2132,
+      "sampling_method": "full_copy",
+      "source_rows": 30
+    },
+    {
+      "filename": "control_group.csv",
+      "rows": 30,
+      "sha256": "2239f409c007c080f301aa0fb7af3575ffdbe712b2e679e5244fa42046184ba7",
+      "size_bytes": 2220,
+      "sampling_method": "full_copy",
+      "source_rows": 30
+    }
+  ]
+}
